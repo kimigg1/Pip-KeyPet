@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **This checkout is "plip", the owner's fork of Pip.** Before anything else read **`PLIP.md`** (goal, decisions,
+> status, facts, how to build on this Windows machine) and **`PLAN.md`** (the firmware plan, stage by stage).
+> The goal is much longer battery life with every Pip feature kept. Everything below is the original author's guide
+> to the code and still applies; where it says macOS (`flash.sh`, `/dev/cu.usbmodem*`, `. ~/esp/esp-idf/export.sh`),
+> use the Windows commands from `PLIP.md` instead.
+
 KeyPet: firmware for a Waveshare ESP32-S3-Touch-AMOLED-1.75C keychain (466×466 round AMOLED, CO5300 over QSPI,
 CST9217 touch, QMI8658 accelerometer, AXP2101 power, ES8311 speaker, ES7210 mics, 8 MB PSRAM, 32 MB flash).
 The character is **Pip** (white eyes, moods driven by a tamagotchi model), plus a menu of apps and an iPhone link

@@ -189,9 +189,14 @@ int main(int argc, char **argv)
                      : png                      ? ""
                                                 : "-pix_fmt yuv420p";
     char cmd[1024];
-    snprintf(cmd, sizeof cmd, "ffmpeg -loglevel error -y -f rawvideo -pix_fmt rgb24 -s %dx%d -r %d -i - %s '%s'", S, S,
+    /* double quotes: understood by both sh and Windows cmd.exe */
+    snprintf(cmd, sizeof cmd, "ffmpeg -loglevel error -y -f rawvideo -pix_fmt rgb24 -s %dx%d -r %d -i - %s \"%s\"", S, S,
              fps, vf, out);
+#ifdef _WIN32
+    FILE *ff = popen(cmd, "wb"); /* binary: a text-mode pipe would turn every 0x0A byte of the frames into 0D 0A */
+#else
     FILE *ff = popen(cmd, "w");
+#endif
     if (!ff) { perror("ffmpeg"); return 1; }
 
     int frames = (int)lroundf(secs * fps);

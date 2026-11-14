@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
 project(pipsim C CXX)
 
+# MinGW (Windows) hides gmtime_r/localtime_r unless asked for the POSIX thread-safe functions
+if(MINGW)
+    add_compile_definitions(_POSIX_THREAD_SAFE_FUNCTIONS)
+endif()
+
 set(LV_BUILD_CONF_PATH ${CMAKE_CURRENT_SOURCE_DIR}/lv_conf.h CACHE PATH "" FORCE)
 set(CONFIG_LV_BUILD_DEMOS OFF CACHE BOOL "" FORCE)
 set(CONFIG_LV_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
