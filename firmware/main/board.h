@@ -19,6 +19,13 @@ void plip_option(const char *name, bool on);
 extern bool plip_lit_sleep;
 extern bool plip_sense_save; /* "sense": gyroscope only for the remote, sensors 25/s while dark, mic only with the face lit */
 extern bool plip_panel_sleep; /* "panel": the panel controller sleeps (SLPIN) while the screen is dark */
+extern int plip_charge_code; /* AXP2101 charge current code (9 = 300 mA), 0: the chip's own */
+void plip_charge_apply(void);
+extern int plip_mode;    /* 0 Экономия, 1 Обычный (default), 2 Максимум (the original) */
+extern int plip_autoeco; /* % below which "Экономия" comes on by itself until the charger, 0 never */
+void plip_set_mode(int m);
+void plip_battery_watch(int pct, bool charging);
+bool plip_autoeco_on(void);
 extern bool plip_bt_save; /* "bt": links idle slowly, advertising fast only for 30 s after a drop, a boot or a wake (ble.c) */
 void settings_bright(int pct);  /* the panel's full brightness, 10..100 */
 int settings_brightness(void);

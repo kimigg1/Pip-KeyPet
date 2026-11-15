@@ -107,6 +107,9 @@ void settings_save(void)
     nvs_set_u8(h, "feat", feat);
     nvs_set_u8(h, "bright", (uint8_t)bright);
     nvs_set_u8(h, "eco", pip_eco_on());
+    nvs_set_u8(h, "chg", (uint8_t)plip_charge_code); /* plip */
+    nvs_set_u8(h, "mode", (uint8_t)plip_mode);
+    nvs_set_u8(h, "autoeco", (uint8_t)plip_autoeco);
     nvs_set_u8(h, "plip", (uint8_t)(pip_still_skip_on() | plip_lit_sleep << 1 | plip_bt_save << 2 | plip_sense_save << 3 | plip_panel_sleep << 4)); /* plip's switches, 1 = on */
     nvs_set_i8(h, "privacy", (int8_t)phone_privacy());
     nvs_commit(h);
@@ -114,6 +117,41 @@ void settings_save(void)
 }
 
 static volatile bool pm_reapply; /* the sensors task sets the PM locks again (it owns them) */
+
+/* plip: one switch for all of it. 0 "Экономия": the original's energy saving (<= 20 fps, no tilt, no listening,
+   Bluetooth off while dark) on top of plip's; 1 "Обычный": plip's savings, everything working (the default);
+   2 "Максимум": the original's behaviour, nothing saved. The single switches ("plip <name> 0|1") still work after. */
+int plip_mode = 1;
+int plip_autoeco = 20; /* %: below it, not charging, "Экономия" comes on by itself until the charger (0: never) */
+static bool autoeco_on;
+static void plip_flags(bool on)
+{
+    pip_still_skip(on);
+    plip_lit_sleep = plip_bt_save = plip_sense_save = plip_panel_sleep = on;
+    pm_reapply = true;
+}
+void plip_set_mode(int m)
+{
+    plip_mode = m < 0 ? 0 : m > 2 ? 2 : m;
+    autoeco_on = false;
+    pip_eco(plip_mode == 0);
+    plip_flags(plip_mode != 2);
+    ESP_LOGI(TAG, "mode %d", plip_mode);
+}
+void plip_battery_watch(int pct, bool charging) /* under the UI lock */
+{
+    if (!autoeco_on && !charging && pct >= 0 && pct <= plip_autoeco && plip_mode != 0) {
+        autoeco_on = true;
+        pip_eco(true), plip_flags(true);
+        pip_react(PIP_TIRED, 4, "low battery"); /* he says so: tired eyes for a moment */
+        ESP_LOGI(TAG, "battery %d%%: saving energy until the charger", pct);
+    } else if (autoeco_on && charging) {
+        autoeco_on = false;
+        pip_eco(plip_mode == 0), plip_flags(plip_mode != 2);
+        ESP_LOGI(TAG, "charging: back to mode %d", plip_mode);
+    }
+}
+bool plip_autoeco_on(void) { return autoeco_on; }
 void plip_option(const char *name, bool on)
 {
     if (!strcmp(name, "still")) pip_still_skip(on);
@@ -144,7 +182,11 @@ static void settings_load(void)
             for (int f = 0; f < PIP_F_COUNT && f < 8; f++) pip_feature(f, feat >> f & 1);
         if (nvs_get_u8(h, "bright", &b) == ESP_OK) bright = b < 10 ? 10 : b > 100 ? 100 : b;
         if (nvs_get_u8(h, "eco", &eco) == ESP_OK) pip_eco(eco);
-        uint8_t pl;
+        uint8_t pl, chg;
+        if (nvs_get_u8(h, "chg", &chg) == ESP_OK) plip_charge_code = chg;
+        uint8_t md, ae;
+        if (nvs_get_u8(h, "autoeco", &ae) == ESP_OK) plip_autoeco = ae;
+        if (nvs_get_u8(h, "mode", &md) == ESP_OK) plip_mode = md; /* its switches come from "plip" below */
         if (nvs_get_u8(h, "plip", &pl) == ESP_OK) pip_still_skip(pl & 1), plip_lit_sleep = pl >> 1 & 1, plip_bt_save = pl >> 2 & 1, plip_sense_save = pl >> 3 & 1, plip_panel_sleep = pl >> 4 & 1;
         if (nvs_get_blob(h, "profile", &profile, &n) != ESP_OK || n != sizeof profile) n = 0; /* a size of its own: the defaults stay */
         nvs_close(h);
@@ -244,6 +286,8 @@ static bool qmi_read(float a[3], float g[3]) /* accel in g, gyro in deg/s, both 
 #define AXP_IRQ_EN2 0x41      /* bit 3: PWR key short press */
 #define AXP_IRQ_STATUS2 0x49  /* same bit, write 1 to clear */
 #define AXP_BAT_PERCENT 0xA4
+#define AXP_CHG_CURRENT 0x62 /* plip: bits 4..0, the constant charge current */
+int plip_charge_code = 9;     /* plip: 300 mA (see pmu_init); 0 leaves what the chip has */
 #define AXP_VBAT_H 0x34       /* battery voltage, mV: 6 bits here, 8 in the next register */
 static i2c_master_dev_handle_t pmu;
 
@@ -269,7 +313,18 @@ static bool pmu_init(i2c_master_bus_handle_t bus)
     pmu_set(AXP_ADC_CTRL, (uint8_t)(adc | 0x01));
     pmu_set(AXP_IRQ_EN2, (uint8_t)(irq | 0x08));
     pmu_set(AXP_IRQ_STATUS2, 0xFF); /* forget presses from before we started */
+    /* plip: the constant charge current (REG 62H, XPowersLib's codes: 4 = 100 mA, 8 = 200 mA, then 9 = 300 mA,
+       10 = 400 mA ...). The cell is 500 mAh: 300 mA is 0.6 C, a full charge in about 2 h instead of 5 at 100 mA. */
+    plip_charge_apply();
     return true;
+}
+
+void plip_charge_apply(void)
+{
+    int was = pmu_get(AXP_CHG_CURRENT);
+    if (was < 0) return;
+    if (plip_charge_code > 0 && plip_charge_code <= 16) pmu_set(AXP_CHG_CURRENT, (uint8_t)((was & ~0x1F) | plip_charge_code));
+    ESP_LOGI(TAG, "charge current code %d -> %d", was & 0x1F, pmu_get(AXP_CHG_CURRENT) & 0x1F);
 }
 
 static struct { int mv, pct; bool charging, usb; } bat = {.pct = -1};
@@ -284,6 +339,7 @@ static void pmu_battery(void)
     bat.mv = present && vh >= 0 && vl >= 0 ? (vh & 0x3F) << 8 | vl : 0;
     shell_battery(bat.pct, charging);
     gb_battery(bat.pct, charging); /* plip: Gadgetbridge shows Pip's battery */
+    plip_battery_watch(bat.pct, charging);
 }
 
 /* ---------- the battery log: a row a minute in flash, to measure what a charge lasts ----------
