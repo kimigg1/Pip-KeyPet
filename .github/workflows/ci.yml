@@ -1,0 +1,46 @@
+# plip: автопроверки. На каждый push и pull request — симулятор с проверками и сборка прошивки.
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  sim:
+    name: Симулятор и проверки
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Инструменты
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q ninja-build ffmpeg
+          pip install pillow
+      - name: Сборка симулятора
+        run: cmake -S sim -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build
+      - name: Проверки (sim/check.py)
+        run: python3 sim/check.py build/pipsim
+
+  firmware:
+    name: Прошивка (ESP-IDF 5.5.5)
+    runs-on: ubuntu-latest
+    container: espressif/idf:v5.5.5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Сборка
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+          idf.py -C firmware build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plip-firmware
+          path: |
+            firmware/build/keypet.bin
+            firmware/build/bootloader/bootloader.bin
+            firmware/build/partition_table/partition-table.bin
+            firmware/build/ota_data_initial.bin
+            firmware/build/flasher_args.json
