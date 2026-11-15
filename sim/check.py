@@ -3,7 +3,7 @@
 and every reaction fires from its real input path (touch, accelerometer, buttons).
 Usage: python3 sim/check.py [path/to/pipsim]"""
 import os, re, subprocess, sys, tempfile
-from PIL import Image
+from PIL import Image, ImageChops
 
 sim = sys.argv[1] if len(sys.argv) > 1 else "build/pipsim"
 tmp = tempfile.mkdtemp()
@@ -59,6 +59,15 @@ _, st = run("0:E1 0.1:V35 0.5:Q", 1.5)
 ok &= check("energy saving: no listening, blowing does nothing", st["reaction"] != "blown" and st["mic"] == "0" and st["eco"] == "1", st)
 _, st = run("0.1:V35", 0.5)
 ok &= check("without it the mic is wanted", st["mic"] == "1" and st["eco"] == "0", st)
+
+# plip: face frames that did not change are not drawn, and the picture is the same as drawing every frame
+skip_img, st = run("0:a0,1,0 0.3:ncontent", 4, "skip_on")
+ok &= check("plip: unchanged face frames are skipped", int(st["skipped"]) > 20 and int(st["drawn"]) > 0, st)
+all_img, st = run("0:I0 0:a0,1,0 0.3:ncontent", 4, "skip_off")
+ok &= check("plip: with skipping off every frame is drawn", st["skipped"] == "0", st)
+diff = ImageChops.difference(Image.open(os.path.join(tmp, "skip_on.png")).convert("L"),
+                             Image.open(os.path.join(tmp, "skip_off.png")).convert("L")).getextrema()[1]
+ok &= check("plip: skipping does not change the picture", diff <= 24, diff)
 
 _, st = run("0.3:S 1.3:S", 1.6)
 ok &= check("shake -> dizzy", st["mood"] == "dizzy", st)

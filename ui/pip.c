@@ -951,6 +951,59 @@ float pip_frame_worst(int secs, const char **mood, const char **reaction)
     return k < 0 ? 0 : worst[k].ms;
 }
 
+/* plip: is there anything new to draw? Compared with the last face actually drawn (not the last frame), so a slow
+   drift still gets drawn once it adds up. Tolerances are a fraction of a pixel on the ~120 px eyes. */
+static struct {
+    bool off, have;
+    face_t last;
+    unsigned drawn, skipped;
+} still;
+
+void pip_still_skip(bool on) { still.off = !on, still.have = false; }
+bool pip_still_skip_on(void) { return !still.off; }
+void pip_frames(unsigned *drawn, unsigned *skipped) { *drawn = still.drawn, *skipped = still.skipped; }
+
+static bool close_to(float a, float b, float tol) { return fabsf(a - b) <= tol; }
+
+static bool eye_still(const eye_t *a, const eye_t *b)
+{
+    const float px = 0.3f, rad = 0.003f, frac = 0.002f;
+    if (!close_to(a->x, b->x, px) || !close_to(a->y, b->y, px) || !close_to(a->w, b->w, px) || !close_to(a->h, b->h, px) ||
+        !close_to(a->depth, b->depth, px))
+        return false;
+    if (!close_to(a->yaw, b->yaw, rad) || !close_to(a->pitch, b->pitch, rad) || !close_to(a->roll, b->roll, rad) ||
+        !close_to(a->look_x, b->look_x, rad) || !close_to(a->look_y, b->look_y, rad) || !close_to(a->tilt, b->tilt, rad))
+        return false;
+    if (!close_to(a->taper, b->taper, frac) || !close_to(a->lid, b->lid, frac) || !close_to(a->smile, b->smile, frac) ||
+        !close_to(a->pw, b->pw, frac) || !close_to(a->ph, b->ph, frac) || !close_to(a->square, b->square, frac) ||
+        !close_to(a->heart, b->heart, frac) || !close_to(a->glint, b->glint, frac) || !close_to(a->spiral, b->spiral, frac) ||
+        !close_to(a->veins, b->veins, frac) || !close_to(a->wet, b->wet, frac) || !close_to(a->wobble, b->wobble, 0.05f))
+        return false;
+    /* the living outline moves on its own clock (face.c: harmonics at 1.3, 1.7 and 2.3 rad/s weighted .3/.5/.2, so the
+       rim moves at most 1.7 * wobble px per second of wob_t): redraw once it has moved a fraction of a pixel. The
+       spiral and the tears run on the same clock faster: while they show, every frame is new. */
+    if (a->spiral > frac || a->wet > frac) return a->wob_t == b->wob_t;
+    return fmaxf(a->wobble, b->wobble) * 1.7f * fabsf(a->wob_t - b->wob_t) <= px;
+}
+
+static bool face_still(const face_t *a, const face_t *b)
+{
+    return a->color == b->color && a->pupil_color == b->pupil_color && a->heart_color == b->heart_color &&
+           a->blush_color == b->blush_color && a->vein_color == b->vein_color && a->water_color == b->water_color &&
+           close_to(a->shading, b->shading, 0.004f) && close_to(a->blush, b->blush, 0.004f) && eye_still(&a->eye[0], &b->eye[0]) &&
+           eye_still(&a->eye[1], &b->eye[1]);
+}
+
+/* true: skip this frame, the screen already shows these eyes */
+static bool nothing_new(void)
+{
+    if (still.off || dev.on || !still.have || !face_still(&s.face, &still.last)) return false;
+    still.skipped++;
+    return true;
+}
+
+static void drew(void) { still.last = s.face, still.have = true, still.drawn++; }
+
 static void tick_cb(lv_timer_t *t)
 {
     (void)t;
@@ -959,6 +1012,7 @@ static void tick_cb(lv_timer_t *t)
     update(fminf(el / 1000.0f, 0.1f));
     if (s.dark || lv_obj_get_screen(s.canvas) != lv_screen_active()) { /* dark, or an app is open: keep living, skip drawing */
         s.last_swap = lv_tick_get(); /* and the time away is no slow frame */
+        still.have = false;          /* back on screen: draw the first frame whatever it is */
         return;
     }
     if (face_start) { /* the firmware draws the next frame in the background while LVGL shows this one */
@@ -975,7 +1029,9 @@ static void tick_cb(lv_timer_t *t)
             s.last_swap = lv_tick_get();
         }
         if (s.eco && lv_tick_elaps(s.last_draw) < ECO_FRAME_MS) return; /* the cores rest until the next frame is due */
+        if (nothing_new()) return;
         s.last_draw = lv_tick_get();
+        drew();
         s.rface = s.face; /* this moment's eyes, drawn over what the back canvas held two frames ago */
         memcpy(s.rface.drawn, s.back_rects, sizeof s.rface.drawn);
         s.pending = true;
@@ -983,7 +1039,9 @@ static void tick_cb(lv_timer_t *t)
         return;
     }
     if (s.eco && lv_tick_elaps(s.last_draw) < ECO_FRAME_MS) return;
+    if (nothing_new()) return;
     s.last_draw = lv_tick_get();
+    drew();
     face_rect_t was[4];
     memcpy(was, s.face.drawn, sizeof was);
     face_draw(&s.face, (uint16_t *)s.buf->data, SCR, SCR);

@@ -23,6 +23,7 @@
                  g<gx>,<gy>,<gz> gyroscope, deg/s, device axes, held until changed
                  Z              "Обновление" on top: the panel is about to flash
                  E<0|1>         energy saving off/on
+                 I<0|1>         plip: skip face frames that did not change (on by default)
    .png saves the last frame. Prints pip's status at the end. --wav out.wav also records Pip's voice (16 kHz mono). */
 #include "fakephone.h"
 #include "mic.h"
@@ -120,6 +121,7 @@ static void run_event(const char *ev)
     else if (ev[0] == 'P') shell_button(PIP_BTN_PWR);
     else if (ev[0] == 'Z') shell_updating();
     else if (ev[0] == 'E') pip_eco(atoi(ev + 1) != 0);
+    else if (ev[0] == 'I') pip_still_skip(atoi(ev + 1) != 0); /* plip: skip unchanged face frames on/off */
     else if (ev[0] == 'Y') shell_set_menu_style((shell_menu_style() + 1) % 3);
     else if (ev[0] == 'H') shell_set_theme(atoi(ev + 1));
     else if (ev[0] == 'L' || ev[0] == 'N' || ev[0] == 'C' || ev[0] == 'M') fake_phone(ev[0], atoi(ev + 1)); /* the fake iPhone */
@@ -246,9 +248,11 @@ int main(int argc, char **argv)
            in.fun, in.love, in.walk, in.day_mood);
     pet_why_t why;
     int base = pet_mood_why(pip_pet(), 0, &why);
-    printf("status: mood=%s reaction=%s steps=%d face_down=%d asleep=%d auto=%d screen=%s theme=%d phone=%s shots=%d base=%s why=%d.%d display=%d eco=%d mic=%d %s\n",
+    unsigned drawn, skipped;
+    pip_frames(&drawn, &skipped);
+    printf("status: mood=%s reaction=%s steps=%d face_down=%d asleep=%d auto=%d screen=%s theme=%d phone=%s shots=%d base=%s why=%d.%d display=%d eco=%d mic=%d drawn=%u skipped=%u %s\n",
            in.mood, in.reaction, in.steps, in.face_down, in.asleep, in.auto_mood, shell_where(), theme_index(),
            *fake_phone_last() ? fake_phone_last() : "-", fake_phone_shots(), pip_mood_name(base), why.kind, why.which, pip_display_on(), pip_eco_on(), pip_mic_wanted(),
-           fake_host_report());
+           drawn, skipped, fake_host_report());
     return pclose(ff) ? 1 : 0;
 }
