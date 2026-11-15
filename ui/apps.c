@@ -91,7 +91,9 @@ static void clock_tick(lv_timer_t *t)
         lv_label_set_text(ck.date, th_label(t));
         snprintf(t, sizeof t, "%d", in.steps);
         th_leader(ck.rows[0], "шаги", t, 202);
-        th_leader(ck.rows[1], "заряд", shell_battery_text(), 202);
+        char zt[48]; /* plip: and how long it lasts */
+        lv_snprintf(zt, sizeof zt, "%s %s", shell_battery_text(), shell_battery_minutes() >= 0 ? shell_battery_left() : "");
+        th_leader(ck.rows[1], "заряд", zt, 202);
         th_leader(ck.rows[2], "пип", th_label(pip_word(&in)), 202);
     } else if (th->clock == CLOCK_DIAL) {
         float ang[3] = {(tm.tm_hour % 12 + tm.tm_min / 60.0f) * 30, (tm.tm_min + tm.tm_sec / 60.0f) * 6, tm.tm_sec * 6.0f};

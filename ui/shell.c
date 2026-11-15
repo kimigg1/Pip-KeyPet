@@ -77,8 +77,40 @@ static void bat_show(void)
     lv_obj_set_width(sh.bat_fill, 2 + 26 * bat.pct / 100);
     lv_obj_set_style_bg_color(sh.bat_fill, lv_color_hex(c), 0);
 }
+/* plip: how long the charge lasts at this pace. On battery, every percent that goes is timed: the pace is a running
+   average of %/hour (the newest drops weigh most), the forecast what is left divided by it. Charging starts over. */
+static struct { uint32_t since; int from; float per_h; } fc = {.from = -1};
+static void forecast(int pct, bool charging)
+{
+    uint32_t now = lv_tick_get();
+    if (charging || pct < 0) { fc.from = -1, fc.per_h = 0; return; }
+    if (fc.from < 0 || pct > fc.from) { fc.from = pct, fc.since = now; return; }
+    if (pct >= fc.from) return;
+    float h = (now - fc.since) / 3600000.0f;
+    if (h < 0.01f) { fc.from = pct, fc.since = now; return; } /* a jump in the gauge, not a pace: start from here */
+    float pace = (fc.from - pct) / h;
+    fc.per_h = fc.per_h > 0 ? fc.per_h * 0.6f + pace * 0.4f : pace;
+    fc.from = pct, fc.since = now;
+}
+int shell_battery_minutes(void)
+{
+    if (bat.pct < 0 || bat.charging || fc.per_h <= 0) return -1;
+    float m = bat.pct / fc.per_h * 60;
+    return m > 99 * 60 ? 99 * 60 : (int)m;
+}
+const char *shell_battery_left(void)
+{
+    static char t[24];
+    int m = shell_battery_minutes();
+    if (m < 0) return bat.charging ? "заряжается" : "считаю…";
+    if (m < 60) lv_snprintf(t, sizeof t, "~%d мин", m);
+    else lv_snprintf(t, sizeof t, "~%d ч", (m + 30) / 60);
+    return t;
+}
+
 void shell_battery(int percent, bool charging)
 {
+    forecast(percent, charging);
     bool changed = percent != bat.pct;
     bat.pct = percent, bat.charging = charging, pip_battery(percent, charging);
     if (changed) bat_show();

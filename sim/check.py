@@ -465,6 +465,12 @@ ok &= check(f"{len(names)} moods, all with a table entry", len(names) >= 40, nam
 for n in names:  # every mood shows up as itself and draws eyes (asleep is a thin line, still bright)
     img, st = run(f"0:n{n}", 2.0, "m")
     ok &= check(f"mood {n} renders", st["mood"] == n and eyes(img)[2] > 0, st)
+# plip: the battery forecast - a percent a minute from 78 % is about 78 minutes; none while charging
+_, st = run("0:J80 60:J79 120:J78", 121)
+ok &= check("plip: the forecast from the pace of the battery", 70 <= int(st["left"]) <= 86, st)
+_, st = run("0:J80 60:J79 120:J78+", 121)
+ok &= check("plip: no forecast while charging", st["left"] == "-1", st)
+
 # plip: Android through Gadgetbridge (the Bangle.js protocol) - the reader, then the fake phone (event q<n>)
 r = subprocess.run([os.path.join(os.path.dirname(sim), "gbjs_test")], capture_output=True, text=True)
 ok &= check("gadgetbridge: the JS literal reader (gbjs_test)", r.returncode == 0, r.stdout.strip()[-300:])

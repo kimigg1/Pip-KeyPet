@@ -253,9 +253,9 @@ int main(int argc, char **argv)
     int base = pet_mood_why(pip_pet(), 0, &why);
     unsigned drawn, skipped;
     pip_frames(&drawn, &skipped);
-    printf("status: mood=%s reaction=%s steps=%d face_down=%d asleep=%d auto=%d screen=%s theme=%d phone=%s shots=%d base=%s why=%d.%d display=%d level=%d eco=%d mic=%d drawn=%u skipped=%u %s %s\n",
+    printf("status: mood=%s reaction=%s steps=%d face_down=%d asleep=%d auto=%d screen=%s theme=%d phone=%s shots=%d base=%s why=%d.%d display=%d level=%d eco=%d mic=%d drawn=%u skipped=%u left=%d %s %s\n",
            in.mood, in.reaction, in.steps, in.face_down, in.asleep, in.auto_mood, shell_where(), theme_index(),
            *fake_phone_last() ? fake_phone_last() : "-", fake_phone_shots(), pip_mood_name(base), why.kind, why.which, pip_display_on(), pip_display_level(), pip_eco_on(), pip_mic_wanted(),
-           drawn, skipped, fake_host_report(), fake_gb_report());
+           drawn, skipped, shell_battery_minutes(), fake_host_report(), fake_gb_report());
     return pclose(ff) ? 1 : 0;
 }
