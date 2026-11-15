@@ -2,6 +2,7 @@
 #include "lvgl.h"
 #include "phone.h"
 #include "gb.h"
+#include "extras.h"
 #include <stdint.h>
 #include <math.h>
 #include <stdio.h>
@@ -56,7 +57,8 @@ static int gb_tz(void) { return gb_zone; }
 const char *fake_gb_report(void)
 {
     static char s[200];
-    snprintf(s, sizeof s, "gb=%d gbsent=%s gbn=%d gbclock=%lld gbtz=%d", gb_on(), gb_sent, gb_sent_n, (long long)gb_clock, gb_zone);
+    snprintf(s, sizeof s, "gb=%d gbsent=%s gbn=%d gbclock=%lld gbtz=%d finding=%d ringing=%d", gb_on(), gb_sent, gb_sent_n,
+             (long long)gb_clock, gb_zone, gb_finding(), extras_busy() && !gb_finding());
     return s;
 }
 void fake_gb(int what)
@@ -71,6 +73,7 @@ void fake_gb(int what)
         /* 7 */ "\x10GB({\"t\":\"alarm\",\"d\":[{\"h\":7,\"m\":30,\"rep\":31,\"on\":true}]})\n",
         /* 8 */ "\x10GB({\"t\":\"find\",\"n\":true})\n",
         /* 9 */ "\x10setTime(1794700000);E.setTimeZone(4);(s=>s&&(s.timezone=4,require('Storage').write('setting.json',s)))(require('Storage').readJSON('setting.json',1))\n",
+        /* 10 */ "\x10GB({\"t\":\"alarm\",\"d\":[{\"h\":12,\"m\":1,\"rep\":127,\"on\":true}]})\n", /* the sim starts at 12:00 local */
     };
     if (what == 0) { gb_link(false); return; }
     if (!gb_on()) {

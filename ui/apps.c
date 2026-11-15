@@ -1,5 +1,6 @@
 /* The menu's apps. Each one builds its screen in open() and cleans its timers in close().
    Colours, fonts, the clock face and the meters come from the current theme (theme.h). */
+#include "extras.h"
 #include "doodle.h"
 #include "maze.h"
 #include "mic.h"
@@ -2294,6 +2295,8 @@ const app_t apps[] = {
     {.id = "camera", .name = "Камера", .icon = ICON_CAMERA, .color = 0x30D158, .open = phone_camera_open, .close = phone_camera_close,
      .button = phone_camera_button, .awake = true},
     {.id = "bt", .name = "Bluetooth", .icon = ICON_BT, .color = 0x0A84FF, .open = phone_bt_open, .close = phone_bt_close},
+    {.id = "findphone", .name = "Найти телефон", .icon = ICON_BT, .color = 0x30D158, .open = extras_findphone_open,
+     .close = extras_findphone_close, .awake = true}, /* plip */
     {.id = "remote", .name = "Пульт", .icon = ICON_REMOTE, .color = 0x5E5CE6, .open = phone_remote_open, .close = phone_remote_close,
      .button = phone_remote_button,
      .button_up = phone_remote_button_up, .imu = phone_remote_imu, .gyro = phone_remote_gyro, .awake = true},

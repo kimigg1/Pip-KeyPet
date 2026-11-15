@@ -1,3 +1,4 @@
+#include "extras.h"
 #include "shell.h"
 #include "doodle.h"
 #include "phone.h"
@@ -714,6 +715,7 @@ void shell_button(int id)
 {
     bool dark = !pip_display_on();
     pip_seen();
+    if (extras_stop()) return; /* plip: a press stops "find my device" or a ringing alarm first */
     if (dark) return; /* the press that wakes the screen does nothing else */
     if (phone_button(id)) return; /* a call, the pairing or a banner answers first */
     lv_obj_t *now = lv_screen_active();
@@ -851,4 +853,5 @@ void shell_create(void)
     sh.glide = lv_timer_create(hex_glide, 16, NULL);
     restyle_menu();
     apps_init();
+    extras_init(); /* plip: find my device, the phone's alarms, the weather */
 }

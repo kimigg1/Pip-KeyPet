@@ -274,7 +274,7 @@ _, st = run("0.1:H1 " + flick0 + " 1.2:d233,300 1.25:m233,260 1.3:m233,244 1.6:u
 ok &= check("list menu: drag up a row, hold, let go, tap the middle -> care", st["screen"] == "care", st)
 _, st = run("0.1:H3 0.2:P 0.5:d233,330 0.53:m233,280 0.56:m233,230 0.59:m233,180 0.6:u 2.2:P", 2.6)
 ok &= check("list menu: a flick coasts several rows and lands on one", st["screen"] not in ("menu", "clock", "care", "qr"), st)
-app_ids = ["bt", "clock", "care", "qr", "noise", "badge", "games", "xo", "eight", "coin", "dice", "maze", "timer", "stopwatch", "torch", "ball", "style", "notify", "music", "camera", "remote"]
+app_ids = ["bt", "findphone", "clock", "care", "qr", "noise", "badge", "games", "xo", "eight", "coin", "dice", "maze", "timer", "stopwatch", "torch", "ball", "style", "notify", "music", "camera", "remote"]
 # the maze: the physics on its own (perfect mazes, a steered ball gets out, nothing shakes it through a wall), then the app
 r = subprocess.run([os.path.join(os.path.dirname(sim), "maze_test")], capture_output=True, text=True)
 ok &= check("maze: perfect mazes, a steered ball gets out, never through a wall (maze_test)", r.returncode == 0, r.stderr.strip())
@@ -488,6 +488,16 @@ _, st = run("0.2:q5 0.5:omusic 1:P", 1.4)
 ok &= check("gadgetbridge: the music key goes to the phone", st["gbsent"] == '{"t":"music","n":"playpause"}', st)
 _, st = run("0.2:q9", 0.6)
 ok &= check("gadgetbridge: the phone sets the clock and the zone", st["gbclock"] == "1794700000" and st["gbtz"] == "240", st)
+_, st = run("0.2:q8", 2.5)
+ok &= check("plip: find my device - Pip calls out until a button", st["finding"] == "1" and st["mood"] == "surprised", st)
+_, st = run("0.2:q8 1.5:B", 2.5)
+ok &= check("plip: a button stops it", st["finding"] == "0", st)
+_, st = run("0.2:q10", 62)
+ok &= check("plip: the phone's alarm rings at its minute", st["ringing"] == "1", st)
+_, st = run("0.2:q6", 1.5)
+ok &= check("plip: snow makes him amazed", st["reaction"] == "snow", st)
+_, st = run("0.2:q5 0.3:ofindphone", 1.2)
+ok &= check("plip: 'Найти телефон' rings the phone", st["gbsent"] == '{"t":"findPhone","n":true}' and st["screen"] == "findphone", st)
 _, st = run("0.2:q1 0.5:q0", 0.8)
 ok &= check("gadgetbridge: the link goes", st["gb"] == "0", st)
 
