@@ -27,7 +27,7 @@ static inline float clamp01(float v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
    (relative error ~5e-6, far below one RGB565 step). */
 static inline float mx(float a, float b) { return a > b ? a : b; }
 static inline float mn(float a, float b) { return a < b ? a : b; }
-static inline float rsqrt(float x)
+static inline float rsqrt_fast(float x)
 {
     union { float f; uint32_t i; } u = {x};
     u.i = 0x5F375A86u - (u.i >> 1);
@@ -36,7 +36,7 @@ static inline float rsqrt(float x)
     y *= 1.5f - 0.5f * x * y * y;
     return y;
 }
-static inline float sqrt_fast(float x) { return x > 0 ? x * rsqrt(x) : 0; }
+static inline float sqrt_fast(float x) { return x > 0 ? x * rsqrt_fast(x) : 0; }
 static inline int mini(int a, int b) { return a < b ? a : b; }
 static inline int maxi(int a, int b) { return a > b ? a : b; }
 /* libm's sinf and atan2f cost hundreds of cycles there; for the tears and the veins these are plenty
@@ -379,13 +379,13 @@ FACE_HOT static void eye_rows(const face_t *f, const eye_t *e, const eye_setup_t
             bool inside = k > 0 && k * k >= s->in_k * g2;                                /* surely covered */
             float wob = 0;
             if (!inside && e->wobble > 0) {
-                float rl = rsqrt(sx * sx + sy * sy + 1e-6f), c1_ = sx * rl, s1_ = sy * rl;
+                float rl = rsqrt_fast(sx * sx + sy * sy + 1e-6f), c1_ = sx * rl, s1_ = sy * rl;
                 float c2 = c1_ * c1_ - s1_ * s1_, s2 = 2 * s1_ * c1_;
                 float c3 = c2 * c1_ - s2 * s1_, s3 = s2 * c1_ + c2 * s1_;
                 float c5 = c3 * c2 - s3 * s2, s5 = s3 * c2 + c3 * s2;
                 wob = e->wobble * (0.3f * (s2 * w2c + c2 * w2s) + 0.5f * (s3 * w3c + c3 * w3s) + 0.2f * (s5 * w5c + c5 * w5s));
             }
-            float cov = inside ? 1 : clamp01(0.5f + wob + k * 0.5f * rsqrt(g2 + 1e-12f));
+            float cov = inside ? 1 : clamp01(0.5f + wob + k * 0.5f * rsqrt_fast(g2 + 1e-12f));
             if (cov <= 0) { PE(2); prev_row[i] = left = NAN; continue; } /* leave what is behind */
 
             /* lids and smile are flat cuts in the rolled eye frame */
@@ -427,13 +427,13 @@ FACE_HOT static void eye_rows(const face_t *f, const eye_t *e, const eye_setup_t
             else if (ko < 0 && ko * ko >= s->lit0_k * o2) lit = 0; /* deep in the crescent */
             else {
                 if (inside && e->wobble > 0) { /* the wobble was skipped above; the shadow edge needs it */
-                    float rl = rsqrt(sx * sx + sy * sy + 1e-6f), c1_ = sx * rl, s1_ = sy * rl;
+                    float rl = rsqrt_fast(sx * sx + sy * sy + 1e-6f), c1_ = sx * rl, s1_ = sy * rl;
                     float c2 = c1_ * c1_ - s1_ * s1_, s2 = 2 * s1_ * c1_;
                     float c3 = c2 * c1_ - s2 * s1_, s3 = s2 * c1_ + c2 * s1_;
                     float c5 = c3 * c2 - s3 * s2, s5 = s3 * c2 + c3 * s2;
                     wob = e->wobble * (0.3f * (s2 * w2c + c2 * w2s) + 0.5f * (s3 * w3c + c3 * w3s) + 0.2f * (s5 * w5c + c5 * w5s));
                 }
-                lit = clamp01(0.4f + (wob + ko * 0.5f * rsqrt(o2 + 1e-12f)) * soft);
+                lit = clamp01(0.4f + (wob + ko * 0.5f * rsqrt_fast(o2 + 1e-12f)) * soft);
             }
             lit = lit * lit * (3 - 2 * lit); /* smoothstep: soft, but over a short distance */
             float shade = 1 - f->shading * 0.24f * (1 - lit);
@@ -454,7 +454,7 @@ FACE_HOT static void eye_rows(const face_t *f, const eye_t *e, const eye_setup_t
             else {
                 grad = isnan(gl) ? (isnan(gu) ? grad_hint : fabsf(gu)) : isnan(gu) ? fabsf(gl) : sqrt_fast(gl * gl + gu * gu);
                 float gg = mx(grad, 1e-4f);
-                pc = clamp01(0.5f - pd * rsqrt(gg * gg));
+                pc = clamp01(0.5f - pd * rsqrt_fast(gg * gg));
             }
             if (pc > 0 && grad < 0 && (e->glint > 0 || e->spiral > 0))
                 grad = isnan(gl) ? (isnan(gu) ? grad_hint : fabsf(gu)) : isnan(gu) ? fabsf(gl) : sqrt_fast(gl * gl + gu * gu);
@@ -469,7 +469,7 @@ FACE_HOT static void eye_rows(const face_t *f, const eye_t *e, const eye_setup_t
                 float d1 = sqrt_fast(ax1 * ax1 + ay1 * ay1) - 0.32f * m;
                 float d2 = sqrt_fast(ax2 * ax2 + ay2 * ay2) - 0.14f * m;
                 float gg = mx(grad, 1e-4f);
-                pc *= 1 - clamp01(0.5f - mn(d1, d2) * rsqrt(gg * gg));
+                pc *= 1 - clamp01(0.5f - mn(d1, d2) * rsqrt_fast(gg * gg));
             }
 
             if (plain && cov >= 1 && shade >= 1 && (pc <= 0 || pc >= 1)) { /* the flat inside of the white or the pupil */
