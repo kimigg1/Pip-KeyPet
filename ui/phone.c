@@ -1,4 +1,4 @@
-/* The iPhone apps and overlays, laid out after the "Диагностика" canvas boards (iPhone row).
+/* The phone apps and overlays (plip: the phone is Android with Gadgetbridge, ui/gb.c), laid out after the "Диагностика" canvas boards.
    The model is filled by the host through phone.h; commands go back through phone_on_command(). */
 #include "phone.h"
 #include "doodle.h"
@@ -169,7 +169,7 @@ static void pair_show(void)
         lv_obj_set_style_line_rounded(ln, true, 0);
         lv_obj_set_pos(ln, SCR / 2 - 17, 92);
     }
-    th_text_at(o, th->tiny, th->dim, ph.pair_host ? "сопряжение с компьютером" : "сопряжение с iphone", -1, 177);
+    th_text_at(o, th->tiny, th->dim, ph.pair_host ? "сопряжение с компьютером" : "сопряжение с телефоном", -1, 177);
     char code[16];
     snprintf(code, sizeof code, "%03u %03u", (unsigned)(ph.code / 1000 % 1000), (unsigned)(ph.code % 1000));
     th_plate(o, 118, 204, 230, 52, th->body, code, false, NULL);
@@ -376,7 +376,7 @@ static void offline(lv_obj_t *scr, int icon, const char *name)
         lv_obj_t *img = lv_image_create(scr);
         lv_image_set_src(img, shell_icon(icon));
         lv_obj_align(img, LV_ALIGN_CENTER, 0, -60);
-        lv_obj_t *l = th_text(scr, th->small, th->dim, ph.link == PHONE_PAIRING ? "Сверьте код на iPhone" : "Нужен iPhone по Bluetooth.\nПодключите его в настройках.");
+        lv_obj_t *l = th_text(scr, th->small, th->dim, ph.link == PHONE_PAIRING ? "Сверьте код на телефоне" : "Нужен телефон с Gadgetbridge.\nДобавьте Пипа как Bangle.js.");
         lv_obj_align(l, LV_ALIGN_CENTER, 0, 70);
         return;
     }

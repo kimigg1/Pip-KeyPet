@@ -217,7 +217,7 @@ details p{margin:8px 0 0}
         </div>
 
         <div class="card">
-          <h3>Уведомления с iPhone</h3>
+          <h3>Уведомления с телефона</h3>
           <div><label for="privacy">Что видно на экране брелока</label>
             <select id="privacy">
               <option value="1">Скрыто: приложение и время, текст — когда откроешь</option>
@@ -225,7 +225,7 @@ details p{margin:8px 0 0}
               <option value="2">Выключены: текст не приходит вообще</option>
             </select></div>
           <p class="muted">Коды, пароли и банки брелок не сохраняет ни в каком режиме.</p>
-          <p class="muted"><b style="color:var(--text)">Подключить iPhone:</b> Настройки → Bluetooth → Pip, затем подтверди код на брелоке верхней кнопкой.</p>
+          <p class="muted"><b style="color:var(--text)">Подключить Android:</b> поставь приложение Gadgetbridge (F-Droid или «Bangle.js Gadgetbridge» в Google Play) → «+» → найди «Bangle.js Pip» → подтверди код на брелоке верхней кнопкой. Уведомления, звонки, музыка, время, погода и будильники придут через него.</p>
         </div>
 
         <div class="card wide">
@@ -249,7 +249,7 @@ details p{margin:8px 0 0}
         <div class="card wide">
           <div class="flashbox">
             <button class="main" id="flash">Прошить</button>
-            <div><div class="bar"><i id="prog"></i></div><p id="flashState" class="muted" style="margin-top:8px">Питомец, настройки и подключённый iPhone при обновлении сохраняются.</p></div>
+            <div><div class="bar"><i id="prog"></i></div><p id="flashState" class="muted" style="margin-top:8px">Питомец, настройки и подключённый телефон при обновлении сохраняются.</p></div>
           </div>
           <details class="muted"><summary>Не получается?</summary>
             <p>Брелок не появляется в списке: попробуй другой кабель или другой USB-порт. На Linux один раз выполни
@@ -318,7 +318,7 @@ function onLine(l) {
   } else if (l.startsWith('@C ')) {
     const first = !cfg;
     cfg = JSON.parse(l.slice(3)); fill();
-    /* plip: the keychain has no clock of its own and only an iPhone sets it: give it this computer's time and zone */
+    /* plip: the keychain has no clock of its own: give it this computer's time and zone (the phone sets it too) */
     if (first) send('time ' + Math.floor(Date.now() / 1000) + ' ' + (-new Date().getTimezoneOffset()));
   }
   else if (l.startsWith('@B ') && batRows) {

@@ -26,6 +26,7 @@
 #include "shell.h"
 #include "theme.h"
 #include "phone.h"
+#include "gb.h"
 #include "profile.h"
 #include "mic.h"
 #include "voice.h"
@@ -282,6 +283,7 @@ static void pmu_battery(void)
     bat.pct = present && pct >= 0 && pct <= 100 ? pct : -1, bat.charging = charging, bat.usb = s1 & 0x20;
     bat.mv = present && vh >= 0 && vl >= 0 ? (vh & 0x3F) << 8 | vl : 0;
     shell_battery(bat.pct, charging);
+    gb_battery(bat.pct, charging); /* plip: Gadgetbridge shows Pip's battery */
 }
 
 /* ---------- the battery log: a row a minute in flash, to measure what a charge lasts ----------
@@ -437,6 +439,13 @@ static void sensors_task(void *arg)
         theme_keep();
         pip_info_t in;
         pip_get_info(&in);
+        static int64_t last_act; /* plip: steps to Gadgetbridge every 10 minutes, as a Bangle.js does */
+        static int last_steps = -1;
+        if (now - last_act > 600000000LL) {
+            last_act = now;
+            if (last_steps >= 0 && in.steps >= last_steps) gb_steps(in.steps - last_steps);
+            last_steps = in.steps;
+        }
         panel_want = pip_display_level();
         bool quiet = pip_eco_on() && !panel_want; /* saving energy: Bluetooth sleeps with the screen */
         ui_unlock();
