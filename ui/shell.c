@@ -764,6 +764,11 @@ void shell_imu(float ax, float ay, float az, float dt)
     if (!pip_display_on() && lv_screen_active() != sh.pip_scr && !awake && !phone_where()) shell_home(); /* asleep: back to his face */
     pip_shake_ok(sh.open < 0 || !apps[sh.open].imu); /* shaking a die is not shaking him */
     pip_imu(ax, ay, az, dt);
+    if (pip_take_dtap() && sh.open < 0 && !phone_where() && !extras_stop()) { /* plip: a double tap shows the time */
+        pip_wake();
+        for (int i = 0; i < app_count; i++)
+            if (!strcmp(apps[i].id, "clock")) { open_app(i); break; }
+    }
     if (sh.open >= 0 && apps[sh.open].imu) apps[sh.open].imu(ax, ay, az, dt);
 }
 

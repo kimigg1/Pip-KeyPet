@@ -230,6 +230,7 @@ static int mood_voice(int mood)
 #define HEARS(f) (FEAT(f) && !s.eco) /* listening for breath or bangs keeps the mic on: off when saving energy */
 #define ECO_FRAME_MS 50 /* energy saving: at most 20 frames a second (the face is most of the battery after the panel) */
 #define FRAME_MS 16     /* plip: at most 60 face frames a second in the background mode (the panel shows 60) */
+static bool still_dtap; /* plip: a double tap came (imu.c), for the shell */
 void pip_eco(bool on) { s.eco = on; }
 bool pip_eco_on(void) { return s.eco; }
 bool pip_mic_wanted(void) { return HEARS(PIP_F_BLOW) || HEARS(PIP_F_NOISE); }
@@ -452,6 +453,7 @@ void pip_imu(float ax, float ay, float az, float dt)
         else react(PIP_DIZZY, 3.0f, "dizzy");
     }
     if (ev & IMU_STEP) pet_event(&s.pet, PET_STEP);
+    if (ev & IMU_DTAP) still_dtap = true; /* plip: the shell shows the time */
 }
 
 void pip_get_info(pip_info_t *o)
@@ -962,6 +964,9 @@ static struct {
     face_t last;
     unsigned drawn, skipped;
 } still;
+
+
+bool pip_take_dtap(void) { bool t = still_dtap; still_dtap = false; return t; }
 
 void pip_still_skip(bool on) { still.off = !on, still.have = false; }
 bool pip_still_skip_on(void) { return !still.off; }

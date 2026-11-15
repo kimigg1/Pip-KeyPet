@@ -51,7 +51,7 @@ static const char *pip_word(const pip_info_t *in)
 }
 
 static struct {
-    lv_obj_t *cells[MCOLS * 7], *ring[60], *date, *info, *window, *hands[3], *arcs[3], *comp[2];
+    lv_obj_t *cells[MCOLS * 7], *ring[60], *date, *info, *window, *hands[3], *arcs[3], *comp[2], *wid;
     lv_obj_t *grid, *rows[3]; /* the terminal face: one object for all the cells, three data rows */
     th_cell_t tc[MCOLS * 7 + 60];
     int nd;
@@ -106,6 +106,11 @@ static void clock_tick(lv_timer_t *t)
             lv_line_set_points(ck.hands[i], ck.pts[i], 2);
         }
         lv_label_set_text_fmt(ck.window, "%02d:%02d:%02d", tm.tm_hour, tm.tm_min, tm.tm_sec);
+        if (ck.wid) { /* plip: the complications */
+            char w[160];
+            extras_widgets(w, sizeof w, in.steps);
+            lv_label_set_text(ck.wid, w);
+        }
     } else { /* CLOCK_BIG */
         lv_label_set_text_fmt(ck.info, "%02d:%02d", tm.tm_hour, tm.tm_min);
         char d[24];
@@ -185,6 +190,9 @@ static void clock_open(lv_obj_t *scr)
         lv_obj_set_style_pad_hor(ck.window, 12, 0);
         lv_obj_set_style_pad_ver(ck.window, 4, 0);
         lv_obj_align(ck.window, LV_ALIGN_CENTER, 0, 78);
+        ck.wid = th_text(scr, th->small, th->dim, ""); /* plip: steps, battery, weather, the next alarm */
+        lv_obj_set_style_text_align(ck.wid, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_align(ck.wid, LV_ALIGN_CENTER, 0, -84);
         const int width[3] = {10, 6, 3};
         const uint32_t color[3] = {th->text, th->text, th->accent};
         for (int i = 0; i < 3; i++) {
@@ -212,7 +220,7 @@ static void clock_open(lv_obj_t *scr)
     ck.timer = lv_timer_create(clock_tick, 250, NULL);
 }
 
-static void clock_close(void) { lv_timer_delete(ck.timer); }
+static void clock_close(void) { lv_timer_delete(ck.timer), ck.wid = NULL; /* plip: gone with the screen */ }
 
 /* ================= timer: drag the arc to set minutes, it keeps running when you leave ================= */
 
@@ -2297,6 +2305,8 @@ const app_t apps[] = {
     {.id = "bt", .name = "Bluetooth", .icon = ICON_BT, .color = 0x0A84FF, .open = phone_bt_open, .close = phone_bt_close},
     {.id = "findphone", .name = "Найти телефон", .icon = ICON_BT, .color = 0x30D158, .open = extras_findphone_open,
      .close = extras_findphone_close, .awake = true}, /* plip */
+    {.id = "pomodoro", .name = "Помодоро", .icon = ICON_TIMER, .color = 0xFF453A, .open = extras_pomodoro_open,
+     .close = extras_pomodoro_close, .button = extras_pomodoro_button}, /* plip */
     {.id = "remote", .name = "Пульт", .icon = ICON_REMOTE, .color = 0x5E5CE6, .open = phone_remote_open, .close = phone_remote_close,
      .button = phone_remote_button,
      .button_up = phone_remote_button_up, .imu = phone_remote_imu, .gyro = phone_remote_gyro, .awake = true},

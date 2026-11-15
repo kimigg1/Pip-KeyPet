@@ -13,6 +13,13 @@
 #define UPSIDE_S 1.0f
 #define FALL_G 0.35f       /* in free fall |a| drops toward 0 */
 #define FALL_S 0.12f
+/* plip: a tap is a sharp jolt from one sample to the next, far above a walk's bounce; two within DTAP_MAX_S (but not
+   closer than DTAP_MIN_S, one knock rings for a while) are a double tap. Not while shaking. */
+#define TAP_G 0.7f
+#define DTAP_MIN_S 0.12f
+#define DTAP_MAX_S 0.6f
+#define DTAP_RING_S 0.08f  /* the second knock rings this long: its jolts are not more knocks */
+#define DTAP_QUIET_S 0.25f
 
 static float lp(float v, float to, float dt, float tau) { return v + (to - v) * (1.0f - expf(-dt / tau)); }
 static float clamp1(float v) { return v < -1 ? -1 : v > 1 ? 1 : v; }
@@ -69,6 +76,24 @@ int imu_feed(imu_t *m, float ax, float ay, float az, float dt)
     } else if (mag > 0.7f) {
         m->fall_t = 0, m->falling = false;
     }
+
+    /* plip: double tap */
+    if (m->have_prev && !m->shaking && m->tap_hold <= 0) {
+        float dx = ax - m->px, dy = ay - m->py, dz = az - m->pz;
+        if (dx * dx + dy * dy + dz * dz > TAP_G * TAP_G) {
+            float since = m->t - m->tap_t;
+            if (m->dtap_at > 0 && m->t - m->dtap_at > DTAP_RING_S) m->dtap_at = 0, m->tap_t = 0; /* more knocks: a shake */
+            else if (m->tap_t > 0 && since >= DTAP_MIN_S && since <= DTAP_MAX_S && m->dtap_at <= 0) m->dtap_at = m->t;
+            else if (m->dtap_at <= 0 && (since > DTAP_MIN_S || m->tap_t <= 0)) m->tap_t = m->t;
+        }
+    }
+    /* a double tap counts once DTAP_QUIET_S have passed with nothing else: a shake keeps knocking */
+    if (m->dtap_at > 0 && m->t - m->dtap_at >= DTAP_QUIET_S) {
+        if (m->energy < SHAKE_G * 0.6f) ev |= IMU_DTAP, m->tap_hold = 0.5f;
+        m->dtap_at = 0, m->tap_t = 0;
+    }
+    if (m->tap_hold > 0) m->tap_hold -= dt;
+    m->px = ax, m->py = ay, m->pz = az, m->have_prev = true;
 
     /* ponytail: a step is any bump in |a| above the running mean; real pedometers also demand a regular rhythm */
     m->mag_lp = lp(m->mag_lp, mag, dt, 0.05f);

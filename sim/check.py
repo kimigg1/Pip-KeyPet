@@ -274,7 +274,7 @@ _, st = run("0.1:H1 " + flick0 + " 1.2:d233,300 1.25:m233,260 1.3:m233,244 1.6:u
 ok &= check("list menu: drag up a row, hold, let go, tap the middle -> care", st["screen"] == "care", st)
 _, st = run("0.1:H3 0.2:P 0.5:d233,330 0.53:m233,280 0.56:m233,230 0.59:m233,180 0.6:u 2.2:P", 2.6)
 ok &= check("list menu: a flick coasts several rows and lands on one", st["screen"] not in ("menu", "clock", "care", "qr"), st)
-app_ids = ["bt", "findphone", "clock", "care", "qr", "noise", "badge", "games", "xo", "eight", "coin", "dice", "maze", "timer", "stopwatch", "torch", "ball", "style", "notify", "music", "camera", "remote"]
+app_ids = ["bt", "findphone", "pomodoro", "clock", "care", "qr", "noise", "badge", "games", "xo", "eight", "coin", "dice", "maze", "timer", "stopwatch", "torch", "ball", "style", "notify", "music", "camera", "remote"]
 # the maze: the physics on its own (perfect mazes, a steered ball gets out, nothing shakes it through a wall), then the app
 r = subprocess.run([os.path.join(os.path.dirname(sim), "maze_test")], capture_output=True, text=True)
 ok &= check("maze: perfect mazes, a steered ball gets out, never through a wall (maze_test)", r.returncode == 0, r.stderr.strip())
@@ -470,6 +470,23 @@ _, st = run("0:J80 60:J79 120:J78", 121)
 ok &= check("plip: the forecast from the pace of the battery", 70 <= int(st["left"]) <= 86, st)
 _, st = run("0:J80 60:J79 120:J78+", 121)
 ok &= check("plip: no forecast while charging", st["left"] == "-1", st)
+
+# plip: a double tap on the case shows the time; one tap, a walk or a shake do not
+TAP2 = "0:a0,1,0 1:a0.9,1,0 1.04:a0,1,0 1.3:a0.9,1,0 1.34:a0,1,0"
+_, st = run(TAP2, 3)
+ok &= check("plip: a double tap opens the clock", st["screen"] == "clock", st)
+_, st = run("0:a0,1,0 1:a0.9,1,0 1.04:a0,1,0", 3)
+ok &= check("plip: one tap does nothing", st["screen"] == "pip", st)
+_, st = run("0:a0,1,0 0.5:W0.6", 3)
+ok &= check("plip: walking is no tap", st["screen"] == "pip", st)
+_, st = run("0:a0,1,0 0.5:S", 3)
+ok &= check("plip: shaking is no tap", st["screen"] == "pip" and st["mood"] == "dizzy", st)
+
+# plip: the pomodoro: the top button starts it, it counts down
+_, st = run("0.2:opomodoro 0.5:P", 2)
+ok &= check("plip: the pomodoro starts on the top button", st["screen"] == "pomodoro" and st["pomo"] == "1", st)
+_, st = run("0.2:opomodoro 0.5:P 1:P", 2)
+ok &= check("plip: and pauses on it", st["pomo"] == "-1", st)
 
 # plip: Android through Gadgetbridge (the Bangle.js protocol) - the reader, then the fake phone (event q<n>)
 r = subprocess.run([os.path.join(os.path.dirname(sim), "gbjs_test")], capture_output=True, text=True)

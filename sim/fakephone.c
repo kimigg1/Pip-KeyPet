@@ -57,8 +57,8 @@ static int gb_tz(void) { return gb_zone; }
 const char *fake_gb_report(void)
 {
     static char s[200];
-    snprintf(s, sizeof s, "gb=%d gbsent=%s gbn=%d gbclock=%lld gbtz=%d finding=%d ringing=%d", gb_on(), gb_sent, gb_sent_n,
-             (long long)gb_clock, gb_zone, gb_finding(), extras_busy() && !gb_finding());
+    snprintf(s, sizeof s, "gb=%d gbsent=%s gbn=%d gbclock=%lld gbtz=%d finding=%d ringing=%d pomo=%d", gb_on(), gb_sent, gb_sent_n,
+             (long long)gb_clock, gb_zone, gb_finding(), extras_busy() && !gb_finding(), extras_pomodoro_state());
     return s;
 }
 void fake_gb(int what)

@@ -71,6 +71,7 @@ float pip_frame_worst(int secs, const char **mood, const char **reaction);
    (no render, nothing sent to the panel): the chip can sleep instead. On by default; off draws every frame. */
 void pip_still_skip(bool on);
 bool pip_still_skip_on(void);
-void pip_frames(unsigned *drawn, unsigned *skipped); /* face frames drawn / skipped as unchanged since boot */
+void pip_frames(unsigned *drawn, unsigned *skipped);
+bool pip_take_dtap(void); /* plip: a double tap on the case came since the last ask */ /* face frames drawn / skipped as unchanged since boot */
 /* Debug keys: '1'..'9','0','-','=' moods, ' ' next mood, 'b' blink, 'm' meet */
 void pip_key(char k);
