@@ -204,6 +204,8 @@ details p{margin:8px 0 0}
               <option value="1">Обычный — всё работает, plip бережёт заряд (по умолчанию)</option>
               <option value="2">Максимум — как в оригинале, без экономии</option>
             </select></div>
+          <div class="toggle"><div>Bluetooth<small>выключи, если телефон не нужен: дольше всего держит заряд (по кабелю панель работает и так)</small></div>
+            <label class="switch"><input type="checkbox" id="radio" aria-label="Bluetooth"><span></span></label></div>
           <div><label for="autoeco">Сама включать «Экономию», когда заряда меньше</label>
             <select id="autoeco">
               <option value="0">никогда</option><option value="10">10%</option><option value="20">20%</option><option value="30">30%</option>
@@ -423,7 +425,7 @@ function fill() {
   cfg.links.forEach((l, i) => { $('ls' + i).value = l[0]; $('lh' + i).value = l[1]; $('lu' + i).value = l[2]; });
   $('power').value = [15, 30, 60, 120, 300, 0].includes(cfg.power) ? cfg.power : 30;
   $('bright').value = cfg.bright; $('brightOut').textContent = cfg.bright + '%';
-  $('mode').value = String(cfg.mode ?? 1); $('autoeco').value = String(cfg.autoeco ?? 20);
+  $('mode').value = String(cfg.mode ?? 1); $('autoeco').value = String(cfg.autoeco ?? 20); $('radio').checked = cfg.radio !== 0;
   $('theme').value = cfg.theme; $('privacy').value = cfg.privacy;
   for (const [f] of FEATS) $('f' + f).checked = !!cfg.feat[f];
   $('ver').textContent = cfg.ver || '—';
@@ -439,6 +441,7 @@ $('power').onchange = e => send('power ' + e.target.value);
 $('bright').onchange = e => send('bright ' + e.target.value);
 $('mode').onchange = e => send('mode ' + e.target.value);
 $('autoeco').onchange = e => send('autoeco ' + e.target.value);
+$('radio').onchange = e => send('radio ' + (e.target.checked ? 1 : 0));
 $('theme').onchange = e => send('theme ' + e.target.value);
 $('privacy').onchange = e => send('privacy ' + e.target.value);
 $('feats').onchange = e => send(`feat ${e.target.id.slice(1)} ${e.target.checked ? 1 : 0}`);

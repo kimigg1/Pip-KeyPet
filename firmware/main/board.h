@@ -22,6 +22,7 @@ extern bool plip_panel_sleep; /* "panel": the panel controller sleeps (SLPIN) wh
 extern int plip_charge_code; /* AXP2101 charge current code (9 = 300 mA), 0: the chip's own */
 void plip_charge_apply(void);
 extern int plip_mode;    /* 0 Экономия, 1 Обычный (default), 2 Максимум (the original) */
+extern bool plip_radio_off; /* plip: no phone - Bluetooth off entirely */
 extern int plip_autoeco; /* % below which "Экономия" comes on by itself until the charger, 0 never */
 void plip_set_mode(int m);
 void plip_battery_watch(int pct, bool charging);

@@ -110,6 +110,7 @@ void settings_save(void)
     nvs_set_u8(h, "chg", (uint8_t)plip_charge_code); /* plip */
     nvs_set_u8(h, "mode", (uint8_t)plip_mode);
     nvs_set_u8(h, "autoeco", (uint8_t)plip_autoeco);
+    nvs_set_u8(h, "radio", !plip_radio_off);
     nvs_set_u8(h, "plip", (uint8_t)(pip_still_skip_on() | plip_lit_sleep << 1 | plip_bt_save << 2 | plip_sense_save << 3 | plip_panel_sleep << 4)); /* plip's switches, 1 = on */
     nvs_set_i8(h, "privacy", (int8_t)phone_privacy());
     nvs_commit(h);
@@ -122,7 +123,8 @@ static volatile bool pm_reapply; /* the sensors task sets the PM locks again (it
    Bluetooth off while dark) on top of plip's; 1 "Обычный": plip's savings, everything working (the default);
    2 "Максимум": the original's behaviour, nothing saved. The single switches ("plip <name> 0|1") still work after. */
 int plip_mode = 1;
-int plip_autoeco = 20; /* %: below it, not charging, "Экономия" comes on by itself until the charger (0: never) */
+int plip_autoeco = 20;
+bool plip_radio_off; /* plip: "without a phone": Bluetooth off the air entirely (the USB panel still works) */ /* %: below it, not charging, "Экономия" comes on by itself until the charger (0: never) */
 static bool autoeco_on;
 static void plip_flags(bool on)
 {
@@ -186,6 +188,8 @@ static void settings_load(void)
         if (nvs_get_u8(h, "chg", &chg) == ESP_OK) plip_charge_code = chg;
         uint8_t md, ae;
         if (nvs_get_u8(h, "autoeco", &ae) == ESP_OK) plip_autoeco = ae;
+        uint8_t ro;
+        if (nvs_get_u8(h, "radio", &ro) == ESP_OK) plip_radio_off = !ro;
         if (nvs_get_u8(h, "mode", &md) == ESP_OK) plip_mode = md; /* its switches come from "plip" below */
         if (nvs_get_u8(h, "plip", &pl) == ESP_OK) pip_still_skip(pl & 1), plip_lit_sleep = pl >> 1 & 1, plip_bt_save = pl >> 2 & 1, plip_sense_save = pl >> 3 & 1, plip_panel_sleep = pl >> 4 & 1;
         if (nvs_get_blob(h, "profile", &profile, &n) != ESP_OK || n != sizeof profile) n = 0; /* a size of its own: the defaults stay */
@@ -503,7 +507,7 @@ static void sensors_task(void *arg)
             last_steps = in.steps;
         }
         panel_want = pip_display_level();
-        bool quiet = pip_eco_on() && !panel_want; /* saving energy: Bluetooth sleeps with the screen */
+        bool quiet = (pip_eco_on() && !panel_want) || plip_radio_off; /* saving energy: Bluetooth sleeps with the screen; plip: or is off */
         ui_unlock();
         boot_prev = boot;
         if (quiet != ble_off) ble_off = quiet, ble_quiet(quiet);

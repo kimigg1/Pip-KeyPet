@@ -195,8 +195,8 @@ static void json_str(char *b, size_t n, const char *s) /* a JSON string, quoted,
 static void config(void) /* @C: everything the settings page shows */
 {
     static char b[1600], t[260];
-    int n = snprintf(b, sizeof b, "@C {\"ver\":\"%s\",\"power\":%d,\"bright\":%d,\"eco\":%d,\"mode\":%d,\"autoeco\":%d,\"theme\":%d,\"privacy\":%d,\"feat\":[",
-                     esp_app_get_description()->version, pip_power_after(), settings_brightness(), pip_eco_on(), plip_mode, plip_autoeco,
+    int n = snprintf(b, sizeof b, "@C {\"ver\":\"%s\",\"power\":%d,\"bright\":%d,\"eco\":%d,\"mode\":%d,\"autoeco\":%d,\"radio\":%d,\"theme\":%d,\"privacy\":%d,\"feat\":[",
+                     esp_app_get_description()->version, pip_power_after(), settings_brightness(), pip_eco_on(), plip_mode, plip_autoeco, !plip_radio_off,
                      theme_index(), phone_privacy());
     for (int f = 0; f < PIP_F_COUNT; f++) n += snprintf(b + n, sizeof b - n, "%s%d", f ? "," : "", pip_feature_on(f));
     const char *names[3] = {profile.first, profile.last, profile.org}, *keys[3] = {"first", "last", "org"};
@@ -281,6 +281,7 @@ static void command(char *line)
     }
     else if (!strcmp(c, "mode") && n > 1) plip_set_mode((int)a1), settings_save(); /* plip: 0 Экономия, 1 Обычный, 2 Максимум */
     else if (!strcmp(c, "autoeco") && n > 1 && a1 >= 0 && a1 <= 50) plip_autoeco = (int)a1, settings_save(); /* plip: % */
+    else if (!strcmp(c, "radio") && n > 1) plip_radio_off = a1 == 0, settings_save(); /* plip: 0 Bluetooth off, 1 on */
     else if (!strcmp(c, "charge") && n > 1 && a1 >= 0 && a1 <= 16) plip_charge_code = (int)a1, plip_charge_apply(), settings_save(); /* plip: 4 = 100 mA, 8 = 200, 9 = 300 */
     else if (!strcmp(c, "plip") && n > 2) plip_option(arg[1], a2 != 0), settings_save(); /* plip <still|lsleep|bt|sense|panel> <0|1> */
     else if (!strcmp(c, "bright") && n > 1) settings_bright((int)a1), settings_save(); /* % */
