@@ -1,6 +1,8 @@
 #include "fakephone.h"
 #include "lvgl.h"
 #include "phone.h"
+#include "gb.h"
+#include <stdint.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -37,8 +39,55 @@ static void send_track(void)
     phone_track(tracks[fp.track].title, tracks[fp.track].artist, tracks[fp.track].dur, fp.pos, fp.playing);
 }
 
+/* ---------- plip: a fake Android with Gadgetbridge (event q<n>) ---------- */
+static char gb_sent[96] = "-"; /* the last line Pip sent to Gadgetbridge, spaces dropped */
+static int gb_sent_n;
+static void gb_send(const char *line)
+{
+    int k = 0;
+    for (const char *p = line; *p && k < (int)sizeof gb_sent - 1; p++)
+        if (*p != ' ' && *p != '\n') gb_sent[k++] = *p;
+    gb_sent[k] = 0, gb_sent_n++;
+}
+static int64_t gb_clock;
+static int gb_zone = 180;
+static void gb_time(int64_t unix_s, int tz) { gb_clock = unix_s, gb_zone = tz; }
+static int gb_tz(void) { return gb_zone; }
+const char *fake_gb_report(void)
+{
+    static char s[200];
+    snprintf(s, sizeof s, "gb=%d gbsent=%s gbn=%d gbclock=%lld gbtz=%d", gb_on(), gb_sent, gb_sent_n, (long long)gb_clock, gb_zone);
+    return s;
+}
+void fake_gb(int what)
+{
+    static const char *const lines[] = {
+        /* 1 */ "\x10GB({\"t\":\"notify\",\"id\":1001,\"src\":\"Telegram\",\"title\":\"\\u041c\\u0430\\u043c\\u0430\",\"body\":\"\\u0422\\u044b \\u0433\\u0434\\u0435?\"})\n",
+        /* 2 */ "\x10GB({\"t\":\"notify-\",\"id\":1001})\n",
+        /* 3 */ "\x10GB({\"t\":\"call\",\"cmd\":\"incoming\",\"name\":\"\\u041f\\u0430\\u043f\\u0430\",\"number\":\"+70000000000\"})\n",
+        /* 4 */ "\x10GB({\"t\":\"call\",\"cmd\":\"end\"})\n",
+        /* 5 */ "\x10GB({\"t\":\"musicinfo\",\"artist\":\"Kino\",\"track\":\"Gruppa krovi\",\"dur\":285,\"c\":-1,\"n\":-1})\n\x10GB({\"t\":\"musicstate\",\"state\":\"play\",\"position\":12,\"shuffle\":1,\"repeat\":1})\n",
+        /* 6 */ "\x10GB({\"t\":\"weather\",\"temp\":268,\"hi\":271,\"lo\":263,\"hum\":80,\"rain\":60,\"code\":601,\"txt\":\"\\u0421\\u043d\\u0435\\u0433\",\"wind\":4.5,\"wdir\":200,\"loc\":\"\\u0421\\u0430\\u0440\\u0430\\u0442\\u043e\\u0432\"})\n",
+        /* 7 */ "\x10GB({\"t\":\"alarm\",\"d\":[{\"h\":7,\"m\":30,\"rep\":31,\"on\":true}]})\n",
+        /* 8 */ "\x10GB({\"t\":\"find\",\"n\":true})\n",
+        /* 9 */ "\x10setTime(1794700000);E.setTimeZone(4);(s=>s&&(s.timezone=4,require('Storage').write('setting.json',s)))(require('Storage').readJSON('setting.json',1))\n",
+    };
+    if (what == 0) { gb_link(false); return; }
+    if (!gb_on()) {
+        static const gb_host_t host = {gb_send, gb_time, gb_tz};
+        gb_start(&host);
+        gb_link(true);
+    }
+    if (what >= 1 && what <= (int)(sizeof lines / sizeof lines[0])) {
+        const char *l = lines[what - 1];
+        int n = (int)strlen(l);
+        for (int i = 0; i < n; i += 20) gb_feed(l + i, n - i < 20 ? n - i : 20); /* in BLE-sized pieces */
+    }
+}
+
 static void on_command(int cmd, uint32_t uid)
 {
+    if (gb_command(cmd, uid)) { fp.last = phone_command_name(cmd); return; } /* plip: Gadgetbridge is the phone */
     fp.last = phone_command_name(cmd);
     int n = sizeof tracks / sizeof tracks[0];
     switch (cmd) {

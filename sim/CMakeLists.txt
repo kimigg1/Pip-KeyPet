@@ -14,7 +14,7 @@ add_subdirectory(../third_party/lvgl lvgl)
 
 file(GLOB THEME_FONTS ../ui/fonts/font_*_*.c)
 set(UI ../ui/face.c ../ui/imu.c ../ui/pip.c ../ui/doodle.c ../ui/pet.c ../ui/shell.c ../ui/apps.c ../ui/voice.c ../ui/profile.c
-       ../ui/theme.c ../ui/phone.c ../ui/mic.c ../ui/maze.c ${THEME_FONTS})
+       ../ui/theme.c ../ui/phone.c ../ui/mic.c ../ui/maze.c ../ui/gb.c ../ui/gbjs.c ${THEME_FONTS})
 
 # the owner's own extras, kept out of the public repo (private/ is gitignored): the AITU mark on the badge
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../private/aitu_mark.c)
@@ -41,6 +41,9 @@ else()
     add_executable(maze_test maze_test.c ../ui/maze.c)
     target_include_directories(maze_test PRIVATE ../ui)
     target_link_libraries(maze_test PRIVATE m)
+    add_executable(gbjs_test gbjs_test.c ../ui/gbjs.c) # plip: the Gadgetbridge reader
+    target_include_directories(gbjs_test PRIVATE ../ui)
+    target_link_libraries(gbjs_test PRIVATE m)
     add_executable(pet_test pet_test.c ../ui/pet.c)
     target_include_directories(pet_test PRIVATE ../ui)
     target_link_libraries(pet_test PRIVATE m)
