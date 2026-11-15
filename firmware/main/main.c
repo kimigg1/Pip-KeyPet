@@ -106,7 +106,7 @@ void settings_save(void)
     nvs_set_u8(h, "feat", feat);
     nvs_set_u8(h, "bright", (uint8_t)bright);
     nvs_set_u8(h, "eco", pip_eco_on());
-    nvs_set_u8(h, "plip", (uint8_t)(pip_still_skip_on() | plip_lit_sleep << 1)); /* plip's switches, 1 = on */
+    nvs_set_u8(h, "plip", (uint8_t)(pip_still_skip_on() | plip_lit_sleep << 1 | plip_bt_save << 2)); /* plip's switches, 1 = on */
     nvs_set_i8(h, "privacy", (int8_t)phone_privacy());
     nvs_commit(h);
     nvs_close(h);
@@ -117,6 +117,7 @@ void plip_option(const char *name, bool on)
 {
     if (!strcmp(name, "still")) pip_still_skip(on);
     else if (!strcmp(name, "lsleep")) plip_lit_sleep = on, pm_reapply = true;
+    else if (!strcmp(name, "bt")) plip_bt_save = on; /* takes effect on the next link and advertising round */
     ESP_LOGI(TAG, "plip %s %s", name, on ? "on" : "off");
 }
 
@@ -141,7 +142,7 @@ static void settings_load(void)
         if (nvs_get_u8(h, "bright", &b) == ESP_OK) bright = b < 10 ? 10 : b > 100 ? 100 : b;
         if (nvs_get_u8(h, "eco", &eco) == ESP_OK) pip_eco(eco);
         uint8_t pl;
-        if (nvs_get_u8(h, "plip", &pl) == ESP_OK) pip_still_skip(pl & 1), plip_lit_sleep = pl >> 1 & 1;
+        if (nvs_get_u8(h, "plip", &pl) == ESP_OK) pip_still_skip(pl & 1), plip_lit_sleep = pl >> 1 & 1, plip_bt_save = pl >> 2 & 1;
         if (nvs_get_blob(h, "profile", &profile, &n) != ESP_OK || n != sizeof profile) n = 0; /* a size of its own: the defaults stay */
         nvs_close(h);
     }

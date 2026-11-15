@@ -76,6 +76,7 @@ static struct {
 } b = {.conn = BLE_HS_CONN_HANDLE_NONE};
 
 static void advertise(void);
+static void phone_idle(uint16_t conn); /* plip: the phone's link at its idle pace */
 static void step(void);
 static void key(uint8_t bits);
 static void host_take(uint16_t conn);
@@ -417,6 +418,7 @@ static void step(void)
             b.ready = true;
             ui(ui_link_on, NULL);
             ancs_fetch(); /* what queued up while we were looking around */
+            phone_idle(b.conn); /* plip */
             return;
         default: return;
         }
@@ -574,14 +576,63 @@ static void hosts_load(void)
 
 static void host_remember(uint16_t conn) { addr_add(conn, hosts, &hosts_n, "hosts"); }
 
+/* ---------- plip: how often the radio talks ----------
+   The original kept every link at the phone's or computer's own pace and advertised fast forever. Now: links idle
+   slowly and speed up only while it matters (the pointer and the wheel of the remote), and advertising is fast only
+   for 30 s after a link drops, the boot or a wake, then once a second. plip_bt_save = false: the original pace. */
+bool plip_bt_save = true;
+/* units: interval 1.25 ms, timeout 10 ms. The phone: 120-150 ms, may skip 4 events (a notification waits < 1 s);
+   inside iOS's rules (min >= 15 ms, max >= min + 15 ms, latency <= 30, timeout <= 6 s, max * (latency + 1) <= 2 s) */
+static const struct ble_gap_upd_params LINK_PHONE_IDLE = {.itvl_min = 96, .itvl_max = 120, .latency = 4, .supervision_timeout = 600};
+static const struct ble_gap_upd_params LINK_HOST_IDLE = {.itvl_min = 24, .itvl_max = 40, .latency = 4, .supervision_timeout = 400};
+static const struct ble_gap_upd_params LINK_HOST_FAST = {.itvl_min = 6, .itvl_max = 12, .latency = 0, .supervision_timeout = 400};
+#define HOST_FAST_MS 10000 /* the remote's pointer and wheel keep the computer's link fast this long after the last move */
+#define ADV_FAST_US 30000000LL
+static int64_t adv_fast_until; /* advertise fast until then */
+static bool host_fast;
+static struct ble_npl_callout host_slow_co;
+
+static void link_speed(uint16_t conn, const struct ble_gap_upd_params *p, const char *what)
+{
+    if (conn == BLE_HS_CONN_HANDLE_NONE) return;
+    int rc = ble_gap_update_params(conn, p);
+    ESP_LOGI(TAG, "link %s: %.1f-%.1f ms, latency %d (%d)", what, p->itvl_min * 1.25f, p->itvl_max * 1.25f, p->latency, rc);
+}
+
+static void adv_fast(void) /* someone may be looking for us now: advertise fast for a while */
+{
+    adv_fast_until = esp_timer_get_time() + ADV_FAST_US;
+    if (ble_gap_adv_active()) ble_gap_adv_stop(); /* restarted fast by the caller's advertise() */
+}
+
+static void host_slow(struct ble_npl_event *ev)
+{
+    (void)ev;
+    if (!host_fast) return;
+    host_fast = false;
+    link_speed(host_conn, &LINK_HOST_IDLE, "computer idle");
+}
+
+static void phone_idle(uint16_t conn)
+{
+    if (plip_bt_save) link_speed(conn, &LINK_PHONE_IDLE, "phone idle");
+}
+
+static void host_busy(void) /* the pointer or the wheel moved: fast now, slow again HOST_FAST_MS later */
+{
+    if (!plip_bt_save) return;
+    if (!host_fast) host_fast = true, link_speed(host_conn, &LINK_HOST_FAST, "computer fast");
+    ble_npl_callout_reset(&host_slow_co, ble_npl_time_ms_to_ticks32(HOST_FAST_MS));
+}
+
 static void host_take(uint16_t conn)
 {
     host_conn = conn;
     ESP_LOGI(TAG, "a computer connected: Pip is its remote");
     host_remember(conn); /* next time it is known at once, before it reads the report map */
-    /* 7.5..15 ms between packets: a pointer that keeps up with the hand */
-    struct ble_gap_upd_params p = {.itvl_min = 6, .itvl_max = 12, .latency = 0, .supervision_timeout = 400};
-    ble_gap_update_params(conn, &p);
+    /* 7.5..15 ms between packets: a pointer that keeps up with the hand (plip: only while it moves, see host_busy) */
+    host_fast = !plip_bt_save;
+    link_speed(conn, plip_bt_save ? &LINK_HOST_IDLE : &LINK_HOST_FAST, plip_bt_save ? "computer idle" : "computer");
     ui(ui_host_on, NULL);
     advertise(); /* the debug page may still come */
 }
@@ -628,12 +679,14 @@ static void host_cmd(int what, int dx, int dy) /* from the UI: the remote and th
     case HOST_NEXT: press_key(0x4E); break; /* Page Down: the next slide in Keynote, PowerPoint, Google Slides, a PDF, a page */
     case HOST_PREV: press_key(0x4B); break; /* Page Up */
     case HOST_CLICK: mouse(1, 0, 0, 0), mouse(0, 0, 0, 0); break;
-    case HOST_DOWN: held = 1, mouse(held, 0, 0, 0); break; /* a drag: every move below carries the button */
+    case HOST_DOWN: host_busy(), held = 1, mouse(held, 0, 0, 0); break; /* a drag: every move below carries the button */
     case HOST_UP: held = 0, mouse(held, 0, 0, 0); break;
     case HOST_SCROLL:
+        host_busy();
         for (int w = dy * WHEEL_SIGN; w; w -= clamp127(w)) mouse(held, 0, 0, clamp127(w));
         break;
     case HOST_MOVE:
+        host_busy();
         while (dx || dy) { /* a report moves at most 127 px each way */
             int sx = clamp127(dx), sy = clamp127(dy);
             mouse(held, sx, sy, 0);
@@ -800,7 +853,11 @@ static int gap_event(struct ble_gap_event *e, void *arg)
         ble_npl_callout_reset(&claim, ble_npl_time_ms_to_ticks32(4000));
         advertise();
         break;
+    case BLE_GAP_EVENT_ADV_COMPLETE: /* plip: the fast window ran out (or a link came): carry on at the slow pace */
+        advertise();
+        break;
     case BLE_GAP_EVENT_DISCONNECT:
+        adv_fast(); /* plip: whoever left may come straight back */
         if (e->disconnect.conn.conn_handle == dbg_conn) {
             dbg_conn = BLE_HS_CONN_HANDLE_NONE;
             ESP_LOGI(TAG, "debug page left");
@@ -923,7 +980,7 @@ void ble_quiet(bool q)
 {
     if (!up) return;
     quiet = q;
-    if (!q) { advertise(); ESP_LOGI(TAG, "awake: advertising again"); return; }
+    if (!q) { adv_fast(), advertise(); ESP_LOGI(TAG, "awake: advertising again"); return; }
     ble_gap_adv_stop();
     const uint16_t cs[] = {b.conn, host_conn, dbg_conn, pending, pending2}; /* the iPhone reconnects by itself when we are back */
     for (unsigned i = 0; i < sizeof cs / sizeof cs[0]; i++)
@@ -944,7 +1001,14 @@ static void advertise(void)
     ble_gap_adv_rsp_set_data(rsp, sizeof rsp);
     if (ble_gap_adv_active()) return;
     struct ble_gap_adv_params p = {.conn_mode = BLE_GAP_CONN_MODE_UND, .disc_mode = BLE_GAP_DISC_MODE_GEN};
-    int rc = ble_gap_adv_start(b.own_addr, NULL, BLE_HS_FOREVER, &p, gap_event, NULL);
+    int32_t ms = BLE_HS_FOREVER;
+    if (plip_bt_save) { /* plip: 30 ms while someone may be looking for us (ends with ADV_COMPLETE), then 1022.5 ms */
+        int64_t left = adv_fast_until - esp_timer_get_time();
+        bool fast = left > 100000;
+        p.itvl_min = p.itvl_max = fast ? 48 : 1636; /* 0.625 ms units; 1022.5 ms is one of Apple's recommended values */
+        if (fast) ms = (int32_t)(left / 1000);
+    }
+    int rc = ble_gap_adv_start(b.own_addr, NULL, ms, &p, gap_event, NULL);
     if (rc) ESP_LOGW(TAG, "advertising failed: %d", rc);
 }
 
@@ -995,6 +1059,8 @@ void ble_start(void)
     if (nimble_port_init() != ESP_OK) { ESP_LOGE(TAG, "NimBLE did not start"); return; }
     ble_npl_callout_init(&again, nimble_port_get_dflt_eventq(), look_again, NULL);
     ble_npl_callout_init(&claim, nimble_port_get_dflt_eventq(), claim_phone, NULL);
+    ble_npl_callout_init(&host_slow_co, nimble_port_get_dflt_eventq(), host_slow, NULL); /* plip */
+    adv_fast_until = esp_timer_get_time() + ADV_FAST_US;                                  /* plip: fast after the boot */
     ble_hs_cfg.sync_cb = on_sync;
     ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
     ble_hs_cfg.sm_io_cap = BLE_HS_IO_DISPLAY_YESNO; /* numeric comparison: secure, and one button press */

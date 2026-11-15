@@ -14,9 +14,10 @@ void batlog_clear(void);
 void debug_start(void);
 void settings_save(void);       /* power, features, brightness, privacy into NVS */
 /* plip's switches, each can bring the original behaviour back: "still" skip unchanged face frames, "lsleep" let the
-   chip sleep between frames while lit. Kept in NVS with the settings. */
+   chip sleep between frames while lit, "bt" the radio's slow pace. Kept in NVS with the settings. */
 void plip_option(const char *name, bool on);
 extern bool plip_lit_sleep;
+extern bool plip_bt_save; /* "bt": links idle slowly, advertising fast only for 30 s after a drop, a boot or a wake (ble.c) */
 void settings_bright(int pct);  /* the panel's full brightness, 10..100 */
 int settings_brightness(void);
 void debug_line(char *line);              /* a command line from the BLE debug link (queued for the debug task) */
