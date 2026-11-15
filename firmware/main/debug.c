@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <sys/time.h>
 
 #define HIST_N (24 * 60)
 typedef struct { int32_t t; uint8_t mood, need[5], why; int8_t day, v; uint8_t asleep, tag[2]; } hist_t; /* 16 bytes */
@@ -273,6 +274,11 @@ static void command(char *line)
     else if (!strcmp(c, "feat") && n > 2) pip_feature((int)a1, a2 != 0), settings_save();
     else if (!strcmp(c, "power") && n > 1) pip_power((int)a1), settings_save();      /* seconds to sleep, 0 never */
     else if (!strcmp(c, "eco") && n > 1) pip_eco(a1 != 0), settings_save();              /* energy saving */
+    else if (!strcmp(c, "time") && n > 1) { /* plip: time <unix utc> [zone minutes east]: the panel sets the clock */
+        struct timeval tv = {.tv_sec = (time_t)strtoll(arg[1], NULL, 10)};
+        if (tv.tv_sec > 1735689600) settimeofday(&tv, NULL); /* after 2025-01-01, as main.c counts real time */
+        if (n > 2 && a2 >= -720 && a2 <= 840) tz_min = (int)a2;
+    }
     else if (!strcmp(c, "plip") && n > 2) plip_option(arg[1], a2 != 0), settings_save(); /* plip <still|lsleep|bt|sense|panel> <0|1> */
     else if (!strcmp(c, "bright") && n > 1) settings_bright((int)a1), settings_save(); /* % */
     else if (!strcmp(c, "privacy") && n > 1) phone_set_privacy((int)a1), settings_save();

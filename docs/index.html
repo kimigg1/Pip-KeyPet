@@ -315,7 +315,12 @@ function onLine(l) {
     const s = JSON.parse(l.slice(3));
     $('mood').textContent = s.m;
     $('bat').textContent = s.bat >= 0 ? `${s.bat}%${s.ch ? ' · заряжается' : ''}` : '—';
-  } else if (l.startsWith('@C ')) { cfg = JSON.parse(l.slice(3)); fill(); }
+  } else if (l.startsWith('@C ')) {
+    const first = !cfg;
+    cfg = JSON.parse(l.slice(3)); fill();
+    /* plip: the keychain has no clock of its own and only an iPhone sets it: give it this computer's time and zone */
+    if (first) send('time ' + Math.floor(Date.now() / 1000) + ' ' + (-new Date().getTimezoneOffset()));
+  }
   else if (l.startsWith('@B ') && batRows) {
     if (l === '@B end') {
       const csv = 'seq,uptime_s,mv,percent,charging,usb,eco,screen_lit_percent\n' + batRows.map(r => {
@@ -387,7 +392,7 @@ $('ble').onclick = async () => {
     await tx.startNotifications();
     dev.addEventListener('gattserverdisconnected', () => { ble = null; state('Bluetooth отключился', false); });
     state('По Bluetooth', true);
-    send('config');
+    cfg = null; send('config'); /* plip: a fresh config, so the time goes too */
   } catch (e) { if (e.name !== 'NotFoundError') state('Bluetooth: ' + e.message, false); }
 };
 setInterval(() => { if ((port || ble) && Date.now() - alive > 4000 && alive) state('Пип не отвечает — переподключи', false); }, 1000);
