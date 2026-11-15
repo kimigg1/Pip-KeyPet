@@ -716,6 +716,8 @@ void shell_button_up(int id)
     if (sh.open >= 0 && apps[sh.open].button_up) apps[sh.open].button_up(id);
 }
 
+bool shell_wants_gyro(void) { return sh.open >= 0 && apps[sh.open].gyro; } /* plip: the gyroscope is off otherwise */
+
 void shell_gyro(float gx, float gy, float gz, float dt)
 {
     if (sh.open >= 0 && apps[sh.open].gyro) apps[sh.open].gyro(gx, gy, gz, dt);

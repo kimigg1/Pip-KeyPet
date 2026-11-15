@@ -17,6 +17,8 @@ void settings_save(void);       /* power, features, brightness, privacy into NVS
    chip sleep between frames while lit, "bt" the radio's slow pace. Kept in NVS with the settings. */
 void plip_option(const char *name, bool on);
 extern bool plip_lit_sleep;
+extern bool plip_sense_save; /* "sense": gyroscope only for the remote, sensors 25/s while dark, mic only with the face lit */
+extern bool plip_panel_sleep; /* "panel": the panel controller sleeps (SLPIN) while the screen is dark */
 extern bool plip_bt_save; /* "bt": links idle slowly, advertising fast only for 30 s after a drop, a boot or a wake (ble.c) */
 void settings_bright(int pct);  /* the panel's full brightness, 10..100 */
 int settings_brightness(void);

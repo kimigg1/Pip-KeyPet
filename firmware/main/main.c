@@ -106,7 +106,7 @@ void settings_save(void)
     nvs_set_u8(h, "feat", feat);
     nvs_set_u8(h, "bright", (uint8_t)bright);
     nvs_set_u8(h, "eco", pip_eco_on());
-    nvs_set_u8(h, "plip", (uint8_t)(pip_still_skip_on() | plip_lit_sleep << 1 | plip_bt_save << 2)); /* plip's switches, 1 = on */
+    nvs_set_u8(h, "plip", (uint8_t)(pip_still_skip_on() | plip_lit_sleep << 1 | plip_bt_save << 2 | plip_sense_save << 3 | plip_panel_sleep << 4)); /* plip's switches, 1 = on */
     nvs_set_i8(h, "privacy", (int8_t)phone_privacy());
     nvs_commit(h);
     nvs_close(h);
@@ -117,6 +117,8 @@ void plip_option(const char *name, bool on)
 {
     if (!strcmp(name, "still")) pip_still_skip(on);
     else if (!strcmp(name, "lsleep")) plip_lit_sleep = on, pm_reapply = true;
+    else if (!strcmp(name, "sense")) plip_sense_save = on;
+    else if (!strcmp(name, "panel")) plip_panel_sleep = on;
     else if (!strcmp(name, "bt")) plip_bt_save = on; /* takes effect on the next link and advertising round */
     ESP_LOGI(TAG, "plip %s %s", name, on ? "on" : "off");
 }
@@ -142,7 +144,7 @@ static void settings_load(void)
         if (nvs_get_u8(h, "bright", &b) == ESP_OK) bright = b < 10 ? 10 : b > 100 ? 100 : b;
         if (nvs_get_u8(h, "eco", &eco) == ESP_OK) pip_eco(eco);
         uint8_t pl;
-        if (nvs_get_u8(h, "plip", &pl) == ESP_OK) pip_still_skip(pl & 1), plip_lit_sleep = pl >> 1 & 1, plip_bt_save = pl >> 2 & 1;
+        if (nvs_get_u8(h, "plip", &pl) == ESP_OK) pip_still_skip(pl & 1), plip_lit_sleep = pl >> 1 & 1, plip_bt_save = pl >> 2 & 1, plip_sense_save = pl >> 3 & 1, plip_panel_sleep = pl >> 4 & 1;
         if (nvs_get_blob(h, "profile", &profile, &n) != ESP_OK || n != sizeof profile) n = 0; /* a size of its own: the defaults stay */
         nvs_close(h);
     }
@@ -356,6 +358,9 @@ static esp_pm_lock_handle_t lit_cpu, lit_awake;
 static esp_pm_lock_handle_t busy_cpu;
 static bool lit_locked; /* lit_cpu/lit_awake held */
 bool plip_lit_sleep = true;
+bool plip_panel_sleep = true; /* "panel": the panel's controller sleeps (SLPIN) while dark, not just display off */
+static bool panel_slept;
+bool plip_sense_save = true; /* "sense": gyro only when an app reads it, sensors 25/s while dark, mic only with the face lit */
 #define BUSY_BEGIN() esp_pm_lock_acquire(busy_cpu)
 #define BUSY_END() esp_pm_lock_release(busy_cpu)
 
@@ -399,9 +404,10 @@ static void sensors_task(void *arg)
     gpio_config(&io);
     int64_t last = esp_timer_get_time(), last_log = last, last_save = last;
     int boot_prev = 1;
+    bool gyro_on = true; /* qmi_init turns on both */
     float mic_peak = 0;
     for (;;) {
-        vTaskDelay(pdMS_TO_TICKS(20));
+        vTaskDelay(pdMS_TO_TICKS(plip_sense_save && !panel_want ? 40 : 20)); /* plip: 25 a second while dark, 50 lit */
         int64_t now = esp_timer_get_time();
         float dt = (now - last) / 1e6f, a[3], g[3];
         last = now;
@@ -417,6 +423,8 @@ static void sensors_task(void *arg)
             if (pet->last < 1735689600) pip_pet_rebase(time(NULL)); /* he lived on a made-up clock: no jump in age */
         }
         if (have_a) shell_imu(a[0], a[1], a[2], dt), shell_gyro(g[0], g[1], g[2], dt);
+        bool gyro_want = !plip_sense_save || shell_wants_gyro(); /* plip: the gyroscope only for the remote */
+        if (imu && gyro_want != gyro_on) gyro_on = gyro_want, qmi_write(QMI_CTRL7, gyro_on ? 0x03 : 0x01);
         if (mic_db() > mic_peak) mic_peak = mic_db();
         shell_time(pet_clock(), tz_min);
         if (now - last_save > SAVE_EVERY_S * 1000000LL) last_save = now, pet_save();
@@ -488,9 +496,11 @@ static void mic_task(void *arg)
     static int16_t buf[AUDIO_RATE / 50];
     bool open = true;
     for (int k = 0;; k++) {
-        if (k % 25 == 0) { /* twice a second: does anyone listen? (Pip's breath and bangs, the noise meter) */
+        if (!open || k % 25 == 0) { /* twice a second: does anyone listen? (Pip's breath and bangs, the noise meter) */
             ui_lock();
-            bool want = pip_mic_wanted() || !strcmp(shell_where(), "noise");
+            /* plip: Pip listens only while his face is on a lit screen (an open I2S keeps the chip from sleeping) */
+            bool face = !plip_sense_save || (panel_want > 0 && !strcmp(shell_where(), "pip"));
+            bool want = (pip_mic_wanted() && face) || !strcmp(shell_where(), "noise");
             ui_unlock();
             if (want != open) {
                 if (want) open = esp_codec_dev_open(mic, &fs) == ESP_CODEC_DEV_OK, esp_codec_dev_set_in_gain(mic, MIC_GAIN_DB);
@@ -498,7 +508,7 @@ static void mic_task(void *arg)
                 ESP_LOGI(TAG, "microphone %s", open ? "on" : "off");
             }
         }
-        if (!open) { vTaskDelay(pdMS_TO_TICKS(20)); continue; }
+        if (!open) { vTaskDelay(pdMS_TO_TICKS(plip_sense_save ? 500 : 20)); continue; } /* plip: not 50 wakeups a second */
         if (esp_codec_dev_read(mic, buf, sizeof buf) == ESP_CODEC_DEV_OK) mic_feed(buf, AUDIO_RATE / 50, AUDIO_RATE);
         else vTaskDelay(pdMS_TO_TICKS(20));
     }
@@ -624,8 +634,16 @@ static void panel_task(void *arg)
             bright_changed = false;
             int was = panel_lit;
             panel_lit = panel_want;
-            if (!panel_lit) brightness(0), esp_lcd_panel_disp_on_off(lcd_panel, false);
-            else {
+            if (!panel_lit) {
+                brightness(0), esp_lcd_panel_disp_on_off(lcd_panel, false);
+                /* plip: and the controller to sleep (SLPIN): its booster and oscillator stop, the picture stays in GRAM */
+                if (plip_panel_sleep) esp_lcd_panel_io_tx_param(lcd_io, 0x02 << 24 | 0x10 << 8, NULL, 0), panel_slept = true;
+            } else {
+                if (panel_slept) { /* SLPOUT, then the 120 ms the controller asks for before anything else */
+                    esp_lcd_panel_io_tx_param(lcd_io, 0x02 << 24 | 0x11 << 8, NULL, 0);
+                    vTaskDelay(pdMS_TO_TICKS(120));
+                    panel_slept = false;
+                }
                 if (!was) esp_lcd_panel_disp_on_off(lcd_panel, true);
                 brightness(bright * panel_lit / 100);
             }

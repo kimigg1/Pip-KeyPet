@@ -273,7 +273,7 @@ static void command(char *line)
     else if (!strcmp(c, "feat") && n > 2) pip_feature((int)a1, a2 != 0), settings_save();
     else if (!strcmp(c, "power") && n > 1) pip_power((int)a1), settings_save();      /* seconds to sleep, 0 never */
     else if (!strcmp(c, "eco") && n > 1) pip_eco(a1 != 0), settings_save();              /* energy saving */
-    else if (!strcmp(c, "plip") && n > 2) plip_option(arg[1], a2 != 0), settings_save(); /* plip <still|lsleep> <0|1> */
+    else if (!strcmp(c, "plip") && n > 2) plip_option(arg[1], a2 != 0), settings_save(); /* plip <still|lsleep|bt|sense|panel> <0|1> */
     else if (!strcmp(c, "bright") && n > 1) settings_bright((int)a1), settings_save(); /* % */
     else if (!strcmp(c, "privacy") && n > 1) phone_set_privacy((int)a1), settings_save();
     else if (!strcmp(c, "theme") && n > 1) shell_set_theme((int)a1);                   /* kept by main.c theme_keep */
