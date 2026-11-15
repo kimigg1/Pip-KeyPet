@@ -44,3 +44,34 @@ jobs:
             firmware/build/partition_table/partition-table.bin
             firmware/build/ota_data_initial.bin
             firmware/build/flasher_args.json
+
+  panel:
+    name: Панель с прошивкой plip (GitHub Pages)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/plip'
+    needs: [sim, firmware]
+    runs-on: ubuntu-latest
+    container: espressif/idf:v5.5.5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Прошивка для панели (tools/release.sh -> docs/firmware/firmware.js)
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+          bash tools/release.sh
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+  pages:
+    name: Выложить панель
+    needs: panel
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
