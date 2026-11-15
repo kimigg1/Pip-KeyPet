@@ -341,6 +341,7 @@ bool pip_display_on(void) { return !s.dark; }
    (turned more than 25 degrees from how he lay) or a notification wakes him. Apps that are there to be looked at
    (the badge, a QR code, the torch...) hold him awake while open. */
 #define DIM_BEFORE_S 5.0f
+#define DIM_AFTER_S 10.0f /* plip: dim this long after the last touch, button or lift */
 static struct {
     int after;      /* seconds to sleep, 0 = never */
     float idle, lp[3], g[3];
@@ -577,8 +578,10 @@ static void power(float dt)
     }
     pw.idle += dt;
     if (pw.hold) pw.idle = 0;
-    if (s.dark || pw.after <= 0) { pw.dim = false; return; }
-    pw.dim = pw.idle > pw.after - fminf(DIM_BEFORE_S, pw.after * 0.5f);
+    if (s.dark) { pw.dim = false; return; }
+    /* plip: dim after DIM_AFTER_S left alone, not just in the last seconds before sleep - also when he never sleeps */
+    if (pw.after <= 0) { pw.dim = pw.idle > DIM_AFTER_S; return; }
+    pw.dim = pw.idle > fminf(DIM_AFTER_S, pw.after - fminf(DIM_BEFORE_S, pw.after * 0.5f));
     if (pw.idle > pw.after) {
         s.dark = true, pw.dozed = true, pw.dim = false;
         memcpy(pw.g, pw.lp, sizeof pw.g);

@@ -91,7 +91,7 @@ static void privacy_load(void)
 }
 
 /* The owner's settings and profile (the badge, the QR links), kept in NVS: what the panel changes */
-static int bright = 80; /* the panel's full brightness, % */
+static int bright = 60; /* the panel's full brightness, % (plip: 60 by default, the original had 80) */
 static volatile bool bright_changed; /* the panel task applies it */
 int settings_brightness(void) { return bright; }
 void settings_bright(int pct) { bright = pct < 10 ? 10 : pct > 100 ? 100 : pct, bright_changed = true; }

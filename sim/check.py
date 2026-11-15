@@ -68,6 +68,11 @@ ok &= check("plip: with skipping off every frame is drawn", st["skipped"] == "0"
 diff = ImageChops.difference(Image.open(os.path.join(tmp, "skip_on.png")).convert("L"),
                              Image.open(os.path.join(tmp, "skip_off.png")).convert("L")).getextrema()[1]
 ok &= check("plip: skipping does not change the picture", diff <= 24, diff)
+# plip: left alone the screen dims after 10 s (the original: only in the last 5 s before sleeping at 30 s)
+_, st = run("0:a0,1,0", 6)
+ok &= check("plip: not dimmed after 6 s alone", st["level"] == "100", st)
+_, st = run("0:a0,1,0", 12)
+ok &= check("plip: dimmed after 12 s alone", st["level"] == "25" and st["display"] == "1", st)
 
 _, st = run("0.3:S 1.3:S", 1.6)
 ok &= check("shake -> dizzy", st["mood"] == "dizzy", st)
