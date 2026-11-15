@@ -106,9 +106,18 @@ void settings_save(void)
     nvs_set_u8(h, "feat", feat);
     nvs_set_u8(h, "bright", (uint8_t)bright);
     nvs_set_u8(h, "eco", pip_eco_on());
+    nvs_set_u8(h, "plip", (uint8_t)(pip_still_skip_on() | plip_lit_sleep << 1)); /* plip's switches, 1 = on */
     nvs_set_i8(h, "privacy", (int8_t)phone_privacy());
     nvs_commit(h);
     nvs_close(h);
+}
+
+static volatile bool pm_reapply; /* the sensors task sets the PM locks again (it owns them) */
+void plip_option(const char *name, bool on)
+{
+    if (!strcmp(name, "still")) pip_still_skip(on);
+    else if (!strcmp(name, "lsleep")) plip_lit_sleep = on, pm_reapply = true;
+    ESP_LOGI(TAG, "plip %s %s", name, on ? "on" : "off");
 }
 
 static void profile_save(void)
@@ -131,6 +140,8 @@ static void settings_load(void)
             for (int f = 0; f < PIP_F_COUNT && f < 8; f++) pip_feature(f, feat >> f & 1);
         if (nvs_get_u8(h, "bright", &b) == ESP_OK) bright = b < 10 ? 10 : b > 100 ? 100 : b;
         if (nvs_get_u8(h, "eco", &eco) == ESP_OK) pip_eco(eco);
+        uint8_t pl;
+        if (nvs_get_u8(h, "plip", &pl) == ESP_OK) pip_still_skip(pl & 1), plip_lit_sleep = pl >> 1 & 1;
         if (nvs_get_blob(h, "profile", &profile, &n) != ESP_OK || n != sizeof profile) n = 0; /* a size of its own: the defaults stay */
         nvs_close(h);
     }
@@ -337,6 +348,16 @@ static bool pmu_pwr_pressed(void)
    it drops to 80 MHz and light-sleeps between wakeups, unless something else holds it (Bluetooth between its radio
    events, an open I2S, the USB host on the debug port). */
 static esp_pm_lock_handle_t lit_cpu, lit_awake;
+/* plip: lit, the chip no longer runs flat out the whole time. The AMOLED keeps its picture by itself, so between
+   frames the chip may drop to 80 MHz and light-sleep; "busy" holds 240 MHz (and so keeps it awake) only while there
+   is work: LVGL rendering and streaming a frame, the face drawing in the background. plip_lit_sleep = false brings the
+   original behaviour back (debug command "plip lsleep 0", kept in NVS). */
+static esp_pm_lock_handle_t busy_cpu;
+static bool lit_locked; /* lit_cpu/lit_awake held */
+bool plip_lit_sleep = true;
+#define BUSY_BEGIN() esp_pm_lock_acquire(busy_cpu)
+#define BUSY_END() esp_pm_lock_release(busy_cpu)
+
 static void pm_start(void)
 {
     esp_pm_config_t pm = {.max_freq_mhz = 240, .min_freq_mhz = 80, .light_sleep_enable = true};
@@ -344,7 +365,8 @@ static void pm_start(void)
     if (e != ESP_OK) ESP_LOGW(TAG, "power management off: %s", esp_err_to_name(e));
     esp_pm_lock_create(ESP_PM_CPU_FREQ_MAX, 0, "lit", &lit_cpu);
     esp_pm_lock_create(ESP_PM_NO_LIGHT_SLEEP, 0, "lit", &lit_awake);
-    esp_pm_lock_acquire(lit_cpu), esp_pm_lock_acquire(lit_awake);
+    esp_pm_lock_create(ESP_PM_CPU_FREQ_MAX, 0, "busy", &busy_cpu);
+    esp_pm_lock_acquire(lit_cpu), esp_pm_lock_acquire(lit_awake), lit_locked = true; /* boot runs flat out */
 }
 
 /* light sleep isolates every pin (an S3 workaround, not optional); these must hold through it: the panel's and the
@@ -357,9 +379,10 @@ static void pm_keep_pins(void)
 
 static void pm_lit(bool lit)
 {
-    if (lit) esp_pm_lock_acquire(lit_cpu), esp_pm_lock_acquire(lit_awake);
-    else esp_pm_lock_release(lit_awake), esp_pm_lock_release(lit_cpu);
-    ESP_LOGI(TAG, "chip %s", lit ? "awake" : "sleeping between wakeups");
+    bool hold = lit && !plip_lit_sleep; /* the original: lit = flat out */
+    if (hold && !lit_locked) esp_pm_lock_acquire(lit_cpu), esp_pm_lock_acquire(lit_awake), lit_locked = true;
+    if (!hold && lit_locked) esp_pm_lock_release(lit_awake), esp_pm_lock_release(lit_cpu), lit_locked = false;
+    ESP_LOGI(TAG, "chip %s", hold ? "awake" : lit ? "lit, sleeping between frames" : "sleeping between wakeups");
 }
 
 static void sensors_task(void *arg)
@@ -410,7 +433,9 @@ static void sensors_task(void *arg)
         ui_unlock();
         boot_prev = boot;
         if (quiet != ble_off) ble_off = quiet, ble_quiet(quiet);
-        if (lit_held != (panel_want > 0)) lit_held = panel_want > 0, pm_lit(lit_held);
+        static bool pm_set; /* plip: the first pass always sets the locks (boot holds them flat out) */
+        if (!pm_set || pm_reapply || lit_held != (panel_want > 0))
+            pm_set = true, pm_reapply = false, lit_held = panel_want > 0, pm_lit(lit_held);
         lit += panel_want > 0, ticks++;
         if (now - last_batlog > 60000000) last_batlog = now, batlog_put(lit * 100 / ticks), lit = ticks = 0;
 
@@ -657,11 +682,13 @@ static uint32_t tick_ms(void) { return (uint32_t)(esp_timer_get_time() / 1000); 
 static void lvgl_task(void *arg)
 {
     for (;;) {
+        BUSY_BEGIN(); /* plip: full speed while LVGL renders and streams; the chip may sleep in the delay below */
         ui_lock();
         uint32_t wait = lv_timer_handler();
         ui_unlock();
-        /* Pip's tick asks every 4 ms; dark, nothing is drawn, so 20 times a second lets the chip sleep between */
-        uint32_t cap = panel_lit ? 10 : 50;
+        BUSY_END();
+        /* Pip's tick asks every 4 ms while a frame is drawn in the background, 16 ms otherwise (plip); dark, nothing is drawn, so 20 times a second lets the chip sleep between */
+        uint32_t cap = panel_lit ? 16 : 50; /* plip: 16 (a frame), not 10: room for the chip to sleep */
         if (!panel_lit) wait = cap;
         vTaskDelay(pdMS_TO_TICKS(wait < 1 ? 1 : wait > cap ? cap : wait));
     }
@@ -772,7 +799,9 @@ static void face_master_task(void *arg)
 {
     for (;;) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        BUSY_BEGIN(); /* plip: both cores at full speed while the face draws */
         face_draw(face_job.f, face_job.buf, face_job.w, face_job.h);
+        BUSY_END();
         face_busy = 0;
     }
 }

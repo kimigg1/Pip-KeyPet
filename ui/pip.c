@@ -229,6 +229,7 @@ static int mood_voice(int mood)
 #define FEAT(f) (!(s.feat_off >> (f) & 1))
 #define HEARS(f) (FEAT(f) && !s.eco) /* listening for breath or bangs keeps the mic on: off when saving energy */
 #define ECO_FRAME_MS 50 /* energy saving: at most 20 frames a second (the face is most of the battery after the panel) */
+#define FRAME_MS 16     /* plip: at most 60 face frames a second in the background mode (the panel shows 60) */
 void pip_eco(bool on) { s.eco = on; }
 bool pip_eco_on(void) { return s.eco; }
 bool pip_mic_wanted(void) { return HEARS(PIP_F_BLOW) || HEARS(PIP_F_NOISE); }
@@ -1016,7 +1017,9 @@ static void tick_cb(lv_timer_t *t)
         return;
     }
     if (face_start) { /* the firmware draws the next frame in the background while LVGL shows this one */
-        if (face_busy) return;
+        /* plip: poll every 4 ms only while a frame is being drawn; otherwise wake when the next one is due, so the
+           chip can sleep in between. And no more than 60 face frames a second (the panel shows 60 anyway). */
+        if (face_busy) { lv_timer_set_period(t, 4); return; }
         if (s.pending) { /* it is ready: swap the canvases and redraw where the eyes were and are */
             uint8_t *d = s.buf->data;
             s.buf->data = s.back->data, s.back->data = d;
@@ -1028,14 +1031,16 @@ static void tick_cb(lv_timer_t *t)
             frame_took((float)lv_tick_elaps(s.last_swap));
             s.last_swap = lv_tick_get();
         }
-        if (s.eco && lv_tick_elaps(s.last_draw) < ECO_FRAME_MS) return; /* the cores rest until the next frame is due */
-        if (nothing_new()) return;
+        uint32_t since = lv_tick_elaps(s.last_draw), gap = s.eco ? ECO_FRAME_MS : FRAME_MS;
+        if (since < gap) { lv_timer_set_period(t, gap - since < 4 ? 4 : gap - since); return; } /* the cores rest */
+        if (nothing_new()) { lv_timer_set_period(t, FRAME_MS); return; }
         s.last_draw = lv_tick_get();
         drew();
         s.rface = s.face; /* this moment's eyes, drawn over what the back canvas held two frames ago */
         memcpy(s.rface.drawn, s.back_rects, sizeof s.rface.drawn);
         s.pending = true;
         face_start(&s.rface, (uint16_t *)s.back->data, SCR, SCR);
+        lv_timer_set_period(t, 4); /* pick it up as soon as it is done */
         return;
     }
     if (s.eco && lv_tick_elaps(s.last_draw) < ECO_FRAME_MS) return;
