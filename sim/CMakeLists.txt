@@ -41,7 +41,7 @@ else()
     add_executable(maze_test maze_test.c ../ui/maze.c)
     target_include_directories(maze_test PRIVATE ../ui)
     target_link_libraries(maze_test PRIVATE m)
-    add_executable(gbjs_test gbjs_test.c ../ui/gbjs.c) # plip: the Gadgetbridge reader
+    add_executable(gbjs_test gbjs_test.c ../ui/gbjs.c) # puglik: the Gadgetbridge reader
     target_include_directories(gbjs_test PRIVATE ../ui)
     target_link_libraries(gbjs_test PRIVATE m)
     add_executable(pet_test pet_test.c ../ui/pet.c)

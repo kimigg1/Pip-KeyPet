@@ -60,19 +60,19 @@ ok &= check("energy saving: no listening, blowing does nothing", st["reaction"] 
 _, st = run("0.1:V35", 0.5)
 ok &= check("without it the mic is wanted", st["mic"] == "1" and st["eco"] == "0", st)
 
-# plip: face frames that did not change are not drawn, and the picture is the same as drawing every frame
+# puglik: face frames that did not change are not drawn, and the picture is the same as drawing every frame
 skip_img, st = run("0:a0,1,0 0.3:ncontent", 4, "skip_on")
-ok &= check("plip: unchanged face frames are skipped", int(st["skipped"]) > 20 and int(st["drawn"]) > 0, st)
+ok &= check("puglik: unchanged face frames are skipped", int(st["skipped"]) > 20 and int(st["drawn"]) > 0, st)
 all_img, st = run("0:I0 0:a0,1,0 0.3:ncontent", 4, "skip_off")
-ok &= check("plip: with skipping off every frame is drawn", st["skipped"] == "0", st)
+ok &= check("puglik: with skipping off every frame is drawn", st["skipped"] == "0", st)
 diff = ImageChops.difference(Image.open(os.path.join(tmp, "skip_on.png")).convert("L"),
                              Image.open(os.path.join(tmp, "skip_off.png")).convert("L")).getextrema()[1]
-ok &= check("plip: skipping does not change the picture", diff <= 24, diff)
-# plip: left alone the screen dims after 10 s (the original: only in the last 5 s before sleeping at 30 s)
+ok &= check("puglik: skipping does not change the picture", diff <= 24, diff)
+# puglik: left alone the screen dims after 10 s (the original: only in the last 5 s before sleeping at 30 s)
 _, st = run("0:a0,1,0", 6)
-ok &= check("plip: not dimmed after 6 s alone", st["level"] == "100", st)
+ok &= check("puglik: not dimmed after 6 s alone", st["level"] == "100", st)
 _, st = run("0:a0,1,0", 12)
-ok &= check("plip: dimmed after 12 s alone", st["level"] == "25" and st["display"] == "1", st)
+ok &= check("puglik: dimmed after 12 s alone", st["level"] == "25" and st["display"] == "1", st)
 
 _, st = run("0.3:S 1.3:S", 1.6)
 ok &= check("shake -> dizzy", st["mood"] == "dizzy", st)
@@ -465,30 +465,30 @@ ok &= check(f"{len(names)} moods, all with a table entry", len(names) >= 40, nam
 for n in names:  # every mood shows up as itself and draws eyes (asleep is a thin line, still bright)
     img, st = run(f"0:n{n}", 2.0, "m")
     ok &= check(f"mood {n} renders", st["mood"] == n and eyes(img)[2] > 0, st)
-# plip: the battery forecast - a percent a minute from 78 % is about 78 minutes; none while charging
+# puglik: the battery forecast - a percent a minute from 78 % is about 78 minutes; none while charging
 _, st = run("0:J80 60:J79 120:J78", 121)
-ok &= check("plip: the forecast from the pace of the battery", 70 <= int(st["left"]) <= 86, st)
+ok &= check("puglik: the forecast from the pace of the battery", 70 <= int(st["left"]) <= 86, st)
 _, st = run("0:J80 60:J79 120:J78+", 121)
-ok &= check("plip: no forecast while charging", st["left"] == "-1", st)
+ok &= check("puglik: no forecast while charging", st["left"] == "-1", st)
 
-# plip: a double tap on the case shows the time; one tap, a walk or a shake do not
+# puglik: a double tap on the case shows the time; one tap, a walk or a shake do not
 TAP2 = "0:a0,1,0 1:a0.9,1,0 1.04:a0,1,0 1.3:a0.9,1,0 1.34:a0,1,0"
 _, st = run(TAP2, 3)
-ok &= check("plip: a double tap opens the clock", st["screen"] == "clock", st)
+ok &= check("puglik: a double tap opens the clock", st["screen"] == "clock", st)
 _, st = run("0:a0,1,0 1:a0.9,1,0 1.04:a0,1,0", 3)
-ok &= check("plip: one tap does nothing", st["screen"] == "pip", st)
+ok &= check("puglik: one tap does nothing", st["screen"] == "pip", st)
 _, st = run("0:a0,1,0 0.5:W0.6", 3)
-ok &= check("plip: walking is no tap", st["screen"] == "pip", st)
+ok &= check("puglik: walking is no tap", st["screen"] == "pip", st)
 _, st = run("0:a0,1,0 0.5:S", 3)
-ok &= check("plip: shaking is no tap", st["screen"] == "pip" and st["mood"] == "dizzy", st)
+ok &= check("puglik: shaking is no tap", st["screen"] == "pip" and st["mood"] == "dizzy", st)
 
-# plip: the pomodoro: the top button starts it, it counts down
+# puglik: the pomodoro: the top button starts it, it counts down
 _, st = run("0.2:opomodoro 0.5:P", 2)
-ok &= check("plip: the pomodoro starts on the top button", st["screen"] == "pomodoro" and st["pomo"] == "1", st)
+ok &= check("puglik: the pomodoro starts on the top button", st["screen"] == "pomodoro" and st["pomo"] == "1", st)
 _, st = run("0.2:opomodoro 0.5:P 1:P", 2)
-ok &= check("plip: and pauses on it", st["pomo"] == "-1", st)
+ok &= check("puglik: and pauses on it", st["pomo"] == "-1", st)
 
-# plip: Android through Gadgetbridge (the Bangle.js protocol) - the reader, then the fake phone (event q<n>)
+# puglik: Android through Gadgetbridge (the Bangle.js protocol) - the reader, then the fake phone (event q<n>)
 r = subprocess.run([os.path.join(os.path.dirname(sim), "gbjs_test")], capture_output=True, text=True)
 ok &= check("gadgetbridge: the JS literal reader (gbjs_test)", r.returncode == 0, r.stdout.strip()[-300:])
 _, st = run("0.2:q1", 0.9)
@@ -506,15 +506,15 @@ ok &= check("gadgetbridge: the music key goes to the phone", st["gbsent"] == '{"
 _, st = run("0.2:q9", 0.6)
 ok &= check("gadgetbridge: the phone sets the clock and the zone", st["gbclock"] == "1794700000" and st["gbtz"] == "240", st)
 _, st = run("0.2:q8", 2.5)
-ok &= check("plip: find my device - Pip calls out until a button", st["finding"] == "1" and st["mood"] == "surprised", st)
+ok &= check("puglik: find my device - Pip calls out until a button", st["finding"] == "1" and st["mood"] == "surprised", st)
 _, st = run("0.2:q8 1.5:B", 2.5)
-ok &= check("plip: a button stops it", st["finding"] == "0", st)
+ok &= check("puglik: a button stops it", st["finding"] == "0", st)
 _, st = run("0.2:q10", 62)
-ok &= check("plip: the phone's alarm rings at its minute", st["ringing"] == "1", st)
+ok &= check("puglik: the phone's alarm rings at its minute", st["ringing"] == "1", st)
 _, st = run("0.2:q6", 1.5)
-ok &= check("plip: snow makes him amazed", st["reaction"] == "snow", st)
+ok &= check("puglik: snow makes him amazed", st["reaction"] == "snow", st)
 _, st = run("0.2:q5 0.3:ofindphone", 1.2)
-ok &= check("plip: 'Найти телефон' rings the phone", st["gbsent"] == '{"t":"findPhone","n":true}' and st["screen"] == "findphone", st)
+ok &= check("puglik: 'Найти телефон' rings the phone", st["gbsent"] == '{"t":"findPhone","n":true}' and st["screen"] == "findphone", st)
 _, st = run("0.2:q1 0.5:q0", 0.8)
 ok &= check("gadgetbridge: the link goes", st["gb"] == "0", st)
 

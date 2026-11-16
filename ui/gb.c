@@ -61,7 +61,7 @@ void gb_link(bool up)
         phone_track(NULL, NULL, 0, 0, false);
         return;
     }
-    send("{\"t\":\"ver\",\"fw\":\"plip\",\"hw\":\"Pip\"}\n");
+    send("{\"t\":\"ver\",\"fw\":\"puglik\",\"hw\":\"Pip\"}\n");
     send_battery();
 }
 

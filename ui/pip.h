@@ -67,11 +67,11 @@ void pip_on_swipe(void (*cb)(int dir));                  /* a quick horizontal f
 int pip_find_mood(const char *name); /* -1 if unknown */
 /* the slowest frame of the last secs seconds (ms, 0: none drawn), and what he showed then (mood, reaction or "") */
 float pip_frame_worst(int secs, const char **mood, const char **reaction);
-/* plip: a frame whose eyes moved less than a fraction of a pixel since the last one drawn is not drawn at all
+/* puglik: a frame whose eyes moved less than a fraction of a pixel since the last one drawn is not drawn at all
    (no render, nothing sent to the panel): the chip can sleep instead. On by default; off draws every frame. */
 void pip_still_skip(bool on);
 bool pip_still_skip_on(void);
 void pip_frames(unsigned *drawn, unsigned *skipped);
-bool pip_take_dtap(void); /* plip: a double tap on the case came since the last ask */ /* face frames drawn / skipped as unchanged since boot */
+bool pip_take_dtap(void); /* puglik: a double tap on the case came since the last ask */ /* face frames drawn / skipped as unchanged since boot */
 /* Debug keys: '1'..'9','0','-','=' moods, ' ' next mood, 'b' blink, 'm' meet */
 void pip_key(char k);

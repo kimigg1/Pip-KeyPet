@@ -1,4 +1,4 @@
-/* plip: the phone link over BLE (NimBLE). No iPhone: the phone is Android with Gadgetbridge, to which Pip is a
+/* puglik: the phone link over BLE (NimBLE). No iPhone: the phone is Android with Gadgetbridge, to which Pip is a
    "Bangle.js" (it is named "Bangle.js Pip" and has the Nordic UART service): Gadgetbridge writes lines of JavaScript
    to the UART (notifications, calls, music, the time, weather, alarms) and Pip answers with JSON lines; ui/gb.c is
    the protocol, this file moves the bytes. The phone pairs once (numeric comparison: the same 6 digits on both screens).
@@ -49,7 +49,7 @@ static struct {
 } b = {.conn = BLE_HS_CONN_HANDLE_NONE};
 
 static void advertise(void);
-static void phone_idle(uint16_t conn); /* plip: the phone's link at its idle pace */
+static void phone_idle(uint16_t conn); /* puglik: the phone's link at its idle pace */
 static void host_take(uint16_t conn);
 static void press_media(uint16_t usage);
 static uint16_t host_conn = BLE_HS_CONN_HANDLE_NONE; /* the computer */
@@ -172,7 +172,7 @@ static void phone_or_computer(struct ble_npl_event *ev)
 static void step(void)
 {
     b.ready = true;
-    phone_idle(b.conn); /* plip */
+    phone_idle(b.conn); /* puglik */
     if (b.conn != gb_conn) ble_npl_callout_reset(&nus_wait, ble_npl_time_ms_to_ticks32(NUS_WAIT_MS));
 }
 
@@ -308,11 +308,11 @@ static void hosts_load(void)
 
 static void host_remember(uint16_t conn) { addr_add(conn, hosts, &hosts_n, "hosts"); }
 
-/* ---------- plip: how often the radio talks ----------
+/* ---------- puglik: how often the radio talks ----------
    The original kept every link at the phone's or computer's own pace and advertised fast forever. Now: links idle
    slowly and speed up only while it matters (the pointer and the wheel of the remote), and advertising is fast only
-   for 30 s after a link drops, the boot or a wake, then once a second. plip_bt_save = false: the original pace. */
-bool plip_bt_save = true;
+   for 30 s after a link drops, the boot or a wake, then once a second. puglik_bt_save = false: the original pace. */
+bool puglik_bt_save = true;
 /* units: interval 1.25 ms, timeout 10 ms. The phone: 120-150 ms, may skip 4 events (a notification waits < 1 s);
    inside iOS's rules (min >= 15 ms, max >= min + 15 ms, latency <= 30, timeout <= 6 s, max * (latency + 1) <= 2 s) */
 static const struct ble_gap_upd_params LINK_PHONE_IDLE = {.itvl_min = 96, .itvl_max = 120, .latency = 4, .supervision_timeout = 600};
@@ -347,25 +347,25 @@ static void host_slow(struct ble_npl_event *ev)
 
 static void phone_idle(uint16_t conn)
 {
-    if (plip_bt_save) link_speed(conn, &LINK_PHONE_IDLE, "phone idle");
+    if (puglik_bt_save) link_speed(conn, &LINK_PHONE_IDLE, "phone idle");
 }
 
 static void host_busy(void) /* the pointer or the wheel moved: fast now, slow again HOST_FAST_MS later */
 {
-    if (!plip_bt_save) return;
+    if (!puglik_bt_save) return;
     if (!host_fast) host_fast = true, link_speed(host_conn, &LINK_HOST_FAST, "computer fast");
     ble_npl_callout_reset(&host_slow_co, ble_npl_time_ms_to_ticks32(HOST_FAST_MS));
 }
 
 static void host_take(uint16_t conn)
 {
-    if (conn == gb_conn) return; /* plip: it writes to the UART: the phone, not a computer */
+    if (conn == gb_conn) return; /* puglik: it writes to the UART: the phone, not a computer */
     host_conn = conn;
     ESP_LOGI(TAG, "a computer connected: Pip is its remote");
     host_remember(conn); /* next time it is known at once, before it reads the report map */
-    /* 7.5..15 ms between packets: a pointer that keeps up with the hand (plip: only while it moves, see host_busy) */
-    host_fast = !plip_bt_save;
-    link_speed(conn, plip_bt_save ? &LINK_HOST_IDLE : &LINK_HOST_FAST, plip_bt_save ? "computer idle" : "computer");
+    /* 7.5..15 ms between packets: a pointer that keeps up with the hand (puglik: only while it moves, see host_busy) */
+    host_fast = !puglik_bt_save;
+    link_speed(conn, puglik_bt_save ? &LINK_HOST_IDLE : &LINK_HOST_FAST, puglik_bt_save ? "computer idle" : "computer");
     ui(ui_host_on, NULL);
     advertise(); /* the debug page may still come */
 }
@@ -464,7 +464,7 @@ static void claim_phone(struct ble_npl_event *ev) { (void)ev; if (pending != BLE
    Without an answer: the phone's place if it is free (then the UART decides), a computer if not. */
 static void decide(uint16_t c, int cat)
 {
-    if (c == gb_conn) { step(); return; } /* plip: Gadgetbridge already said who it is */
+    if (c == gb_conn) { step(); return; } /* puglik: Gadgetbridge already said who it is */
     bool slot = c == b.conn || !b.connected;
     if (cat > 1 || (cat != 1 && !slot)) { /* anything that is not a phone: a Mac calls itself a "media player" (0x0280) */
         if (c == b.conn) b = (typeof(b)){.own_addr = b.own_addr, .conn = BLE_HS_CONN_HANDLE_NONE}, ui(ui_link_off, NULL);
@@ -477,7 +477,7 @@ static void decide(uint16_t c, int cat)
         ble_gattc_exchange_mtu(c, NULL, NULL);
         advertise();
     }
-    step(); /* plip: then it writes to the UART (Gadgetbridge) or is a computer */
+    step(); /* puglik: then it writes to the UART (Gadgetbridge) or is a computer */
 }
 
 static uint16_t who_done = BLE_HS_CONN_HANDLE_NONE;
@@ -581,12 +581,12 @@ static int gap_event(struct ble_gap_event *e, void *arg)
         ble_npl_callout_reset(&claim, ble_npl_time_ms_to_ticks32(4000));
         advertise();
         break;
-    case BLE_GAP_EVENT_ADV_COMPLETE: /* plip: the fast window ran out (or a link came): carry on at the slow pace */
+    case BLE_GAP_EVENT_ADV_COMPLETE: /* puglik: the fast window ran out (or a link came): carry on at the slow pace */
         advertise();
         break;
     case BLE_GAP_EVENT_DISCONNECT:
-        adv_fast(); /* plip: whoever left may come straight back */
-        if (e->disconnect.conn.conn_handle == gb_conn) { /* plip: Gadgetbridge went */
+        adv_fast(); /* puglik: whoever left may come straight back */
+        if (e->disconnect.conn.conn_handle == gb_conn) { /* puglik: Gadgetbridge went */
             gb_conn = BLE_HS_CONN_HANDLE_NONE;
             ESP_LOGI(TAG, "Gadgetbridge left");
             ui(ui_gb_down, NULL);
@@ -712,7 +712,7 @@ void ble_quiet(bool q)
 static void advertise(void)
 {
     if (quiet) return; /* a link that just went down would call us back on air */
-    /* plip: named "Bangle.js Pip" - Gadgetbridge takes a device for a Bangle.js by its name - with the HID service
+    /* puglik: named "Bangle.js Pip" - Gadgetbridge takes a device for a Bangle.js by its name - with the HID service
        for computers; the scan response lists the Nordic UART Gadgetbridge looks for */
     static const uint8_t adv[] = {2, 0x01, 0x06,       /* flags: general discoverable, LE only */
                                   3, 0x03, 0x12, 0x18, /* services: HID */
@@ -725,7 +725,7 @@ static void advertise(void)
     if (ble_gap_adv_active()) return;
     struct ble_gap_adv_params p = {.conn_mode = BLE_GAP_CONN_MODE_UND, .disc_mode = BLE_GAP_DISC_MODE_GEN};
     int32_t ms = BLE_HS_FOREVER;
-    if (plip_bt_save) { /* plip: 30 ms while someone may be looking for us (ends with ADV_COMPLETE), then 1022.5 ms */
+    if (puglik_bt_save) { /* puglik: 30 ms while someone may be looking for us (ends with ADV_COMPLETE), then 1022.5 ms */
         int64_t left = adv_fast_until - esp_timer_get_time();
         bool fast = left > 100000;
         p.itvl_min = p.itvl_max = fast ? 48 : 1636; /* 0.625 ms units; 1022.5 ms is one of Apple's recommended values */
@@ -737,7 +737,7 @@ static void advertise(void)
 
 /* Bump when the services table changes: phones and computers bonded to the old one are told once (Service Changed, on
    their next connection) to look at our services again instead of trusting the handles they cached. */
-#define GATT_LAYOUT 3 /* 2: the computer's service gained the keyboard and media reports; 3 (plip): no phone keyboard, the UART */
+#define GATT_LAYOUT 3 /* 2: the computer's service gained the keyboard and media reports; 3 (puglik): no phone keyboard, the UART */
 
 static void gatt_layout_check(void)
 {
@@ -776,10 +776,10 @@ void ble_start(void)
     uuid(&DBG_RX, "50495044-4247-4B45-5950-455400000002");
     uuid(&DBG_TX, "50495044-4247-4B45-5950-455400000003");
     if (nimble_port_init() != ESP_OK) { ESP_LOGE(TAG, "NimBLE did not start"); return; }
-    ble_npl_callout_init(&nus_wait, nimble_port_get_dflt_eventq(), phone_or_computer, NULL); /* plip */
+    ble_npl_callout_init(&nus_wait, nimble_port_get_dflt_eventq(), phone_or_computer, NULL); /* puglik */
     ble_npl_callout_init(&claim, nimble_port_get_dflt_eventq(), claim_phone, NULL);
-    ble_npl_callout_init(&host_slow_co, nimble_port_get_dflt_eventq(), host_slow, NULL); /* plip */
-    adv_fast_until = esp_timer_get_time() + ADV_FAST_US;                                  /* plip: fast after the boot */
+    ble_npl_callout_init(&host_slow_co, nimble_port_get_dflt_eventq(), host_slow, NULL); /* puglik */
+    adv_fast_until = esp_timer_get_time() + ADV_FAST_US;                                  /* puglik: fast after the boot */
     ble_hs_cfg.sync_cb = on_sync;
     ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
     ble_hs_cfg.sm_io_cap = BLE_HS_IO_DISPLAY_YESNO; /* numeric comparison: secure, and one button press */
@@ -790,7 +790,7 @@ void ble_start(void)
     ble_hs_cfg.sm_their_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
     ble_svc_gap_init();
     ble_svc_gatt_init();
-    ble_svc_gap_device_name_set("Bangle.js Pip"); /* plip: Gadgetbridge knows a Bangle.js by its name */
+    ble_svc_gap_device_name_set("Bangle.js Pip"); /* puglik: Gadgetbridge knows a Bangle.js by its name */
     ble_svc_gap_device_appearance_set(0x03C1); /* keyboard */
     if (ble_gatts_count_cfg(services) || ble_gatts_add_svcs(services)) ESP_LOGE(TAG, "HID services did not register");
     ble_store_config_init(); /* bonds in NVS: pair once */

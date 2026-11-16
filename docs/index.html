@@ -201,7 +201,7 @@ details p{margin:8px 0 0}
           <div><label for="mode">Режим батареи</label>
             <select id="mode">
               <option value="0">Экономия — дольше всего: до 20 кадров, глаза без наклона, без микрофона, Bluetooth спит с экраном</option>
-              <option value="1">Обычный — всё работает, plip бережёт заряд (по умолчанию)</option>
+              <option value="1">Обычный — всё работает, puglik бережёт заряд (по умолчанию)</option>
               <option value="2">Максимум — как в оригинале, без экономии</option>
             </select></div>
           <div class="toggle"><div>Bluetooth<small>выключи, если телефон не нужен: дольше всего держит заряд (по кабелю панель работает и так)</small></div>
@@ -328,7 +328,7 @@ function onLine(l) {
   } else if (l.startsWith('@C ')) {
     const first = !cfg;
     cfg = JSON.parse(l.slice(3)); fill();
-    /* plip: the keychain has no clock of its own: give it this computer's time and zone (the phone sets it too) */
+    /* puglik: the keychain has no clock of its own: give it this computer's time and zone (the phone sets it too) */
     if (first) send('time ' + Math.floor(Date.now() / 1000) + ' ' + (-new Date().getTimezoneOffset()));
   }
   else if (l.startsWith('@B ') && batRows) {
@@ -402,7 +402,7 @@ $('ble').onclick = async () => {
     await tx.startNotifications();
     dev.addEventListener('gattserverdisconnected', () => { ble = null; state('Bluetooth отключился', false); });
     state('По Bluetooth', true);
-    cfg = null; send('config'); /* plip: a fresh config, so the time goes too */
+    cfg = null; send('config'); /* puglik: a fresh config, so the time goes too */
   } catch (e) { if (e.name !== 'NotFoundError') state('Bluetooth: ' + e.message, false); }
 };
 setInterval(() => { if ((port || ble) && Date.now() - alive > 4000 && alive) state('Пип не отвечает — переподключи', false); }, 1000);

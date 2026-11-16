@@ -13,21 +13,21 @@ void batlog_clear(void);
 
 void debug_start(void);
 void settings_save(void);       /* power, features, brightness, privacy into NVS */
-/* plip's switches, each can bring the original behaviour back: "still" skip unchanged face frames, "lsleep" let the
+/* puglik's switches, each can bring the original behaviour back: "still" skip unchanged face frames, "lsleep" let the
    chip sleep between frames while lit, "bt" the radio's slow pace. Kept in NVS with the settings. */
-void plip_option(const char *name, bool on);
-extern bool plip_lit_sleep;
-extern bool plip_sense_save; /* "sense": gyroscope only for the remote, sensors 25/s while dark, mic only with the face lit */
-extern bool plip_panel_sleep; /* "panel": the panel controller sleeps (SLPIN) while the screen is dark */
-extern int plip_charge_code; /* AXP2101 charge current code (9 = 300 mA), 0: the chip's own */
-void plip_charge_apply(void);
-extern int plip_mode;    /* 0 Экономия, 1 Обычный (default), 2 Максимум (the original) */
-extern bool plip_radio_off; /* plip: no phone - Bluetooth off entirely */
-extern int plip_autoeco; /* % below which "Экономия" comes on by itself until the charger, 0 never */
-void plip_set_mode(int m);
-void plip_battery_watch(int pct, bool charging);
-bool plip_autoeco_on(void);
-extern bool plip_bt_save; /* "bt": links idle slowly, advertising fast only for 30 s after a drop, a boot or a wake (ble.c) */
+void puglik_option(const char *name, bool on);
+extern bool puglik_lit_sleep;
+extern bool puglik_sense_save; /* "sense": gyroscope only for the remote, sensors 25/s while dark, mic only with the face lit */
+extern bool puglik_panel_sleep; /* "panel": the panel controller sleeps (SLPIN) while the screen is dark */
+extern int puglik_charge_code; /* AXP2101 charge current code (9 = 300 mA), 0: the chip's own */
+void puglik_charge_apply(void);
+extern int puglik_mode;    /* 0 Экономия, 1 Обычный (default), 2 Максимум (the original) */
+extern bool puglik_radio_off; /* puglik: no phone - Bluetooth off entirely */
+extern int puglik_autoeco; /* % below which "Экономия" comes on by itself until the charger, 0 never */
+void puglik_set_mode(int m);
+void puglik_battery_watch(int pct, bool charging);
+bool puglik_autoeco_on(void);
+extern bool puglik_bt_save; /* "bt": links idle slowly, advertising fast only for 30 s after a drop, a boot or a wake (ble.c) */
 void settings_bright(int pct);  /* the panel's full brightness, 10..100 */
 int settings_brightness(void);
 void debug_line(char *line);              /* a command line from the BLE debug link (queued for the debug task) */

@@ -1,4 +1,4 @@
-﻿# Окружение plip для PowerShell на Windows. Запуск из корня проекта:  . .\tools\plip-env.ps1
+﻿# Окружение puglik для PowerShell на Windows. Запуск из корня проекта:  . .\tools\puglik-env.ps1
 # Добавляет в PATH этого окна: Python 3.12 (для ESP-IDF), GCC/CMake/Ninja из WinLibs (для симулятора)
 # и подключает ESP-IDF (idf.py). Ничего не меняет в системе.
 
@@ -13,4 +13,4 @@ $env:PATH = "$py312;$gccBin;" + $env:PATH
 $idf = Join-Path $env:USERPROFILE "esp\esp-idf\export.ps1"
 if (Test-Path $idf) { . $idf *> $null } else { Write-Warning "Нет ESP-IDF в $idf" }
 
-Write-Host "plip: gcc, cmake, ninja и idf.py готовы в этом окне"
+Write-Host "puglik: gcc, cmake, ninja и idf.py готовы в этом окне"

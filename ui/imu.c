@@ -13,7 +13,7 @@
 #define UPSIDE_S 1.0f
 #define FALL_G 0.35f       /* in free fall |a| drops toward 0 */
 #define FALL_S 0.12f
-/* plip: a tap is a sharp jolt from one sample to the next, far above a walk's bounce; two within DTAP_MAX_S (but not
+/* puglik: a tap is a sharp jolt from one sample to the next, far above a walk's bounce; two within DTAP_MAX_S (but not
    closer than DTAP_MIN_S, one knock rings for a while) are a double tap. Not while shaking. */
 #define TAP_G 0.7f
 #define DTAP_MIN_S 0.12f
@@ -77,7 +77,7 @@ int imu_feed(imu_t *m, float ax, float ay, float az, float dt)
         m->fall_t = 0, m->falling = false;
     }
 
-    /* plip: double tap */
+    /* puglik: double tap */
     if (m->have_prev && !m->shaking && m->tap_hold <= 0) {
         float dx = ax - m->px, dy = ay - m->py, dz = az - m->pz;
         if (dx * dx + dy * dy + dz * dz > TAP_G * TAP_G) {

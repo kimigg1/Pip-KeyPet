@@ -1,4 +1,4 @@
 cmake_minimum_required(VERSION 3.16)
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-set(PROJECT_VER "1.1.0-plip") # what the panel shows and tools/release.sh name the build by it
+set(PROJECT_VER "1.1.0-puglik") # what the panel shows and tools/release.sh name the build by it
 project(keypet)

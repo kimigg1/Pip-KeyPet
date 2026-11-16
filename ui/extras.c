@@ -1,4 +1,4 @@
-/* plip: what the phone's extras do on the keychain (Gadgetbridge, ui/gb.c): "find my device" makes Pip call out,
+/* puglik: what the phone's extras do on the keychain (Gadgetbridge, ui/gb.c): "find my device" makes Pip call out,
    the phone's alarms ring on Pip (also when the phone is away), the weather moves his mood, and "Найти телефон"
    makes the phone ring. Pure UI: the simulator runs it as it is. */
 #include "extras.h"

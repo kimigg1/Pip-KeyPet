@@ -40,7 +40,7 @@ static void send_track(void)
     phone_track(tracks[fp.track].title, tracks[fp.track].artist, tracks[fp.track].dur, fp.pos, fp.playing);
 }
 
-/* ---------- plip: a fake Android with Gadgetbridge (event q<n>) ---------- */
+/* ---------- puglik: a fake Android with Gadgetbridge (event q<n>) ---------- */
 static char gb_sent[96] = "-"; /* the last line Pip sent to Gadgetbridge, spaces dropped */
 static int gb_sent_n;
 static void gb_send(const char *line)
@@ -90,7 +90,7 @@ void fake_gb(int what)
 
 static void on_command(int cmd, uint32_t uid)
 {
-    if (gb_command(cmd, uid)) { fp.last = phone_command_name(cmd); return; } /* plip: Gadgetbridge is the phone */
+    if (gb_command(cmd, uid)) { fp.last = phone_command_name(cmd); return; } /* puglik: Gadgetbridge is the phone */
     fp.last = phone_command_name(cmd);
     int n = sizeof tracks / sizeof tracks[0];
     switch (cmd) {

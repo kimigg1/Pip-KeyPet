@@ -229,8 +229,8 @@ static int mood_voice(int mood)
 #define FEAT(f) (!(s.feat_off >> (f) & 1))
 #define HEARS(f) (FEAT(f) && !s.eco) /* listening for breath or bangs keeps the mic on: off when saving energy */
 #define ECO_FRAME_MS 50 /* energy saving: at most 20 frames a second (the face is most of the battery after the panel) */
-#define FRAME_MS 16     /* plip: at most 60 face frames a second in the background mode (the panel shows 60) */
-static bool still_dtap; /* plip: a double tap came (imu.c), for the shell */
+#define FRAME_MS 16     /* puglik: at most 60 face frames a second in the background mode (the panel shows 60) */
+static bool still_dtap; /* puglik: a double tap came (imu.c), for the shell */
 void pip_eco(bool on) { s.eco = on; }
 bool pip_eco_on(void) { return s.eco; }
 bool pip_mic_wanted(void) { return HEARS(PIP_F_BLOW) || HEARS(PIP_F_NOISE); }
@@ -342,7 +342,7 @@ bool pip_display_on(void) { return !s.dark; }
    (turned more than 25 degrees from how he lay) or a notification wakes him. Apps that are there to be looked at
    (the badge, a QR code, the torch...) hold him awake while open. */
 #define DIM_BEFORE_S 5.0f
-#define DIM_AFTER_S 10.0f /* plip: dim this long after the last touch, button or lift */
+#define DIM_AFTER_S 10.0f /* puglik: dim this long after the last touch, button or lift */
 static struct {
     int after;      /* seconds to sleep, 0 = never */
     float idle, lp[3], g[3];
@@ -453,7 +453,7 @@ void pip_imu(float ax, float ay, float az, float dt)
         else react(PIP_DIZZY, 3.0f, "dizzy");
     }
     if (ev & IMU_STEP) pet_event(&s.pet, PET_STEP);
-    if (ev & IMU_DTAP) still_dtap = true; /* plip: the shell shows the time */
+    if (ev & IMU_DTAP) still_dtap = true; /* puglik: the shell shows the time */
 }
 
 void pip_get_info(pip_info_t *o)
@@ -581,7 +581,7 @@ static void power(float dt)
     pw.idle += dt;
     if (pw.hold) pw.idle = 0;
     if (s.dark) { pw.dim = false; return; }
-    /* plip: dim after DIM_AFTER_S left alone, not just in the last seconds before sleep - also when he never sleeps */
+    /* puglik: dim after DIM_AFTER_S left alone, not just in the last seconds before sleep - also when he never sleeps */
     if (pw.after <= 0) { pw.dim = pw.idle > DIM_AFTER_S; return; }
     pw.dim = pw.idle > fminf(DIM_AFTER_S, pw.after - fminf(DIM_BEFORE_S, pw.after * 0.5f));
     if (pw.idle > pw.after) {
@@ -957,7 +957,7 @@ float pip_frame_worst(int secs, const char **mood, const char **reaction)
     return k < 0 ? 0 : worst[k].ms;
 }
 
-/* plip: is there anything new to draw? Compared with the last face actually drawn (not the last frame), so a slow
+/* puglik: is there anything new to draw? Compared with the last face actually drawn (not the last frame), so a slow
    drift still gets drawn once it adds up. Tolerances are a fraction of a pixel on the ~120 px eyes. */
 static struct {
     bool off, have;
@@ -1025,7 +1025,7 @@ static void tick_cb(lv_timer_t *t)
         return;
     }
     if (face_start) { /* the firmware draws the next frame in the background while LVGL shows this one */
-        /* plip: poll every 4 ms only while a frame is being drawn; otherwise wake when the next one is due, so the
+        /* puglik: poll every 4 ms only while a frame is being drawn; otherwise wake when the next one is due, so the
            chip can sleep in between. And no more than 60 face frames a second (the panel shows 60 anyway). */
         if (face_busy) { lv_timer_set_period(t, 4); return; }
         if (s.pending) { /* it is ready: swap the canvases and redraw where the eyes were and are */

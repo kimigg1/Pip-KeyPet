@@ -1,4 +1,4 @@
-/* plip: a reader for what Gadgetbridge sends a "Bangle.js": not JSON but JavaScript literals, e.g.
+/* puglik: a reader for what Gadgetbridge sends a "Bangle.js": not JSON but JavaScript literals, e.g.
      \x10GB({"t":"notify","id":5,"src":"Telegram","body":"Привет"})
    Strings may hold \xHH, \uHHHH, \n-style and octal escapes, raw Latin-1 bytes, or come as atob("base64").
    Everything is decoded to UTF-8. Pure C, no allocation: a fixed pool per parse. */

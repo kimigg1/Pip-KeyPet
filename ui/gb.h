@@ -1,4 +1,4 @@
-/* plip: Android through Gadgetbridge. To Gadgetbridge Pip is a "Bangle.js": it writes lines of JavaScript to Pip's
+/* puglik: Android through Gadgetbridge. To Gadgetbridge Pip is a "Bangle.js": it writes lines of JavaScript to Pip's
    Nordic UART (notifications, calls, music, the time, weather, alarms, "find my device"), and Pip answers with JSON
    lines (music keys, call answers, battery, steps, "find my phone"). This file is the protocol and feeds the same
    phone model (phone.h) the iPhone does; the host (firmware/main/ble.c, the simulator) moves the bytes. */
@@ -39,7 +39,7 @@ int gb_alarms(const gb_alarm_t **out);
 bool gb_finding(void);       /* the phone is looking for Pip ("find my device") */
 void gb_found(void);         /* a touch or a button: stop */
 
-/* plip's UI hooks it calls (set by whoever shows them; NULL: nothing) */
+/* puglik's UI hooks it calls (set by whoever shows them; NULL: nothing) */
 extern void (*gb_on_find)(bool on);
 extern void (*gb_on_weather)(void);
 extern void (*gb_on_alarms)(void);

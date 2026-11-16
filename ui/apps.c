@@ -92,7 +92,7 @@ static void clock_tick(lv_timer_t *t)
         lv_label_set_text(ck.date, th_label(t));
         snprintf(t, sizeof t, "%d", in.steps);
         th_leader(ck.rows[0], "шаги", t, 202);
-        char zt[48]; /* plip: and how long it lasts */
+        char zt[48]; /* puglik: and how long it lasts */
         lv_snprintf(zt, sizeof zt, "%s %s", shell_battery_text(), shell_battery_minutes() >= 0 ? shell_battery_left() : "");
         th_leader(ck.rows[1], "заряд", zt, 202);
         th_leader(ck.rows[2], "пип", th_label(pip_word(&in)), 202);
@@ -106,7 +106,7 @@ static void clock_tick(lv_timer_t *t)
             lv_line_set_points(ck.hands[i], ck.pts[i], 2);
         }
         lv_label_set_text_fmt(ck.window, "%02d:%02d:%02d", tm.tm_hour, tm.tm_min, tm.tm_sec);
-        if (ck.wid) { /* plip: the complications */
+        if (ck.wid) { /* puglik: the complications */
             char w[160];
             extras_widgets(w, sizeof w, in.steps);
             lv_label_set_text(ck.wid, w);
@@ -190,7 +190,7 @@ static void clock_open(lv_obj_t *scr)
         lv_obj_set_style_pad_hor(ck.window, 12, 0);
         lv_obj_set_style_pad_ver(ck.window, 4, 0);
         lv_obj_align(ck.window, LV_ALIGN_CENTER, 0, 78);
-        ck.wid = th_text(scr, th->small, th->dim, ""); /* plip: steps, battery, weather, the next alarm */
+        ck.wid = th_text(scr, th->small, th->dim, ""); /* puglik: steps, battery, weather, the next alarm */
         lv_obj_set_style_text_align(ck.wid, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_align(ck.wid, LV_ALIGN_CENTER, 0, -84);
         const int width[3] = {10, 6, 3};
@@ -220,7 +220,7 @@ static void clock_open(lv_obj_t *scr)
     ck.timer = lv_timer_create(clock_tick, 250, NULL);
 }
 
-static void clock_close(void) { lv_timer_delete(ck.timer), ck.wid = NULL; /* plip: gone with the screen */ }
+static void clock_close(void) { lv_timer_delete(ck.timer), ck.wid = NULL; /* puglik: gone with the screen */ }
 
 /* ================= timer: drag the arc to set minutes, it keeps running when you leave ================= */
 
@@ -2304,9 +2304,9 @@ const app_t apps[] = {
      .button = phone_camera_button, .awake = true},
     {.id = "bt", .name = "Bluetooth", .icon = ICON_BT, .color = 0x0A84FF, .open = phone_bt_open, .close = phone_bt_close},
     {.id = "findphone", .name = "Найти телефон", .icon = ICON_BT, .color = 0x30D158, .open = extras_findphone_open,
-     .close = extras_findphone_close, .awake = true}, /* plip */
+     .close = extras_findphone_close, .awake = true}, /* puglik */
     {.id = "pomodoro", .name = "Помодоро", .icon = ICON_TIMER, .color = 0xFF453A, .open = extras_pomodoro_open,
-     .close = extras_pomodoro_close, .button = extras_pomodoro_button}, /* plip */
+     .close = extras_pomodoro_close, .button = extras_pomodoro_button}, /* puglik */
     {.id = "remote", .name = "Пульт", .icon = ICON_REMOTE, .color = 0x5E5CE6, .open = phone_remote_open, .close = phone_remote_close,
      .button = phone_remote_button,
      .button_up = phone_remote_button_up, .imu = phone_remote_imu, .gyro = phone_remote_gyro, .awake = true},

@@ -1,4 +1,4 @@
-/* The phone apps and overlays (plip: the phone is Android with Gadgetbridge, ui/gb.c), laid out after the "Диагностика" canvas boards.
+/* The phone apps and overlays (puglik: the phone is Android with Gadgetbridge, ui/gb.c), laid out after the "Диагностика" canvas boards.
    The model is filled by the host through phone.h; commands go back through phone_on_command(). */
 #include "phone.h"
 #include "doodle.h"

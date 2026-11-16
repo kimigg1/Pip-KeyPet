@@ -92,7 +92,7 @@ static void privacy_load(void)
 }
 
 /* The owner's settings and profile (the badge, the QR links), kept in NVS: what the panel changes */
-static int bright = 60; /* the panel's full brightness, % (plip: 60 by default, the original had 80) */
+static int bright = 60; /* the panel's full brightness, % (puglik: 60 by default, the original had 80) */
 static volatile bool bright_changed; /* the panel task applies it */
 int settings_brightness(void) { return bright; }
 void settings_bright(int pct) { bright = pct < 10 ? 10 : pct > 100 ? 100 : pct, bright_changed = true; }
@@ -107,11 +107,11 @@ void settings_save(void)
     nvs_set_u8(h, "feat", feat);
     nvs_set_u8(h, "bright", (uint8_t)bright);
     nvs_set_u8(h, "eco", pip_eco_on());
-    nvs_set_u8(h, "chg", (uint8_t)plip_charge_code); /* plip */
-    nvs_set_u8(h, "mode", (uint8_t)plip_mode);
-    nvs_set_u8(h, "autoeco", (uint8_t)plip_autoeco);
-    nvs_set_u8(h, "radio", !plip_radio_off);
-    nvs_set_u8(h, "plip", (uint8_t)(pip_still_skip_on() | plip_lit_sleep << 1 | plip_bt_save << 2 | plip_sense_save << 3 | plip_panel_sleep << 4)); /* plip's switches, 1 = on */
+    nvs_set_u8(h, "chg", (uint8_t)puglik_charge_code); /* puglik */
+    nvs_set_u8(h, "mode", (uint8_t)puglik_mode);
+    nvs_set_u8(h, "autoeco", (uint8_t)puglik_autoeco);
+    nvs_set_u8(h, "radio", !puglik_radio_off);
+    nvs_set_u8(h, "puglik", (uint8_t)(pip_still_skip_on() | puglik_lit_sleep << 1 | puglik_bt_save << 2 | puglik_sense_save << 3 | puglik_panel_sleep << 4)); /* puglik's switches, 1 = on */
     nvs_set_i8(h, "privacy", (int8_t)phone_privacy());
     nvs_commit(h);
     nvs_close(h);
@@ -119,49 +119,49 @@ void settings_save(void)
 
 static volatile bool pm_reapply; /* the sensors task sets the PM locks again (it owns them) */
 
-/* plip: one switch for all of it. 0 "Экономия": the original's energy saving (<= 20 fps, no tilt, no listening,
-   Bluetooth off while dark) on top of plip's; 1 "Обычный": plip's savings, everything working (the default);
-   2 "Максимум": the original's behaviour, nothing saved. The single switches ("plip <name> 0|1") still work after. */
-int plip_mode = 1;
-int plip_autoeco = 20;
-bool plip_radio_off; /* plip: "without a phone": Bluetooth off the air entirely (the USB panel still works) */ /* %: below it, not charging, "Экономия" comes on by itself until the charger (0: never) */
+/* puglik: one switch for all of it. 0 "Экономия": the original's energy saving (<= 20 fps, no tilt, no listening,
+   Bluetooth off while dark) on top of puglik's; 1 "Обычный": puglik's savings, everything working (the default);
+   2 "Максимум": the original's behaviour, nothing saved. The single switches ("puglik <name> 0|1") still work after. */
+int puglik_mode = 1;
+int puglik_autoeco = 20;
+bool puglik_radio_off; /* puglik: "without a phone": Bluetooth off the air entirely (the USB panel still works) */ /* %: below it, not charging, "Экономия" comes on by itself until the charger (0: never) */
 static bool autoeco_on;
-static void plip_flags(bool on)
+static void puglik_flags(bool on)
 {
     pip_still_skip(on);
-    plip_lit_sleep = plip_bt_save = plip_sense_save = plip_panel_sleep = on;
+    puglik_lit_sleep = puglik_bt_save = puglik_sense_save = puglik_panel_sleep = on;
     pm_reapply = true;
 }
-void plip_set_mode(int m)
+void puglik_set_mode(int m)
 {
-    plip_mode = m < 0 ? 0 : m > 2 ? 2 : m;
+    puglik_mode = m < 0 ? 0 : m > 2 ? 2 : m;
     autoeco_on = false;
-    pip_eco(plip_mode == 0);
-    plip_flags(plip_mode != 2);
-    ESP_LOGI(TAG, "mode %d", plip_mode);
+    pip_eco(puglik_mode == 0);
+    puglik_flags(puglik_mode != 2);
+    ESP_LOGI(TAG, "mode %d", puglik_mode);
 }
-void plip_battery_watch(int pct, bool charging) /* under the UI lock */
+void puglik_battery_watch(int pct, bool charging) /* under the UI lock */
 {
-    if (!autoeco_on && !charging && pct >= 0 && pct <= plip_autoeco && plip_mode != 0) {
+    if (!autoeco_on && !charging && pct >= 0 && pct <= puglik_autoeco && puglik_mode != 0) {
         autoeco_on = true;
-        pip_eco(true), plip_flags(true);
+        pip_eco(true), puglik_flags(true);
         pip_react(PIP_TIRED, 4, "low battery"); /* he says so: tired eyes for a moment */
         ESP_LOGI(TAG, "battery %d%%: saving energy until the charger", pct);
     } else if (autoeco_on && charging) {
         autoeco_on = false;
-        pip_eco(plip_mode == 0), plip_flags(plip_mode != 2);
-        ESP_LOGI(TAG, "charging: back to mode %d", plip_mode);
+        pip_eco(puglik_mode == 0), puglik_flags(puglik_mode != 2);
+        ESP_LOGI(TAG, "charging: back to mode %d", puglik_mode);
     }
 }
-bool plip_autoeco_on(void) { return autoeco_on; }
-void plip_option(const char *name, bool on)
+bool puglik_autoeco_on(void) { return autoeco_on; }
+void puglik_option(const char *name, bool on)
 {
     if (!strcmp(name, "still")) pip_still_skip(on);
-    else if (!strcmp(name, "lsleep")) plip_lit_sleep = on, pm_reapply = true;
-    else if (!strcmp(name, "sense")) plip_sense_save = on;
-    else if (!strcmp(name, "panel")) plip_panel_sleep = on;
-    else if (!strcmp(name, "bt")) plip_bt_save = on; /* takes effect on the next link and advertising round */
-    ESP_LOGI(TAG, "plip %s %s", name, on ? "on" : "off");
+    else if (!strcmp(name, "lsleep")) puglik_lit_sleep = on, pm_reapply = true;
+    else if (!strcmp(name, "sense")) puglik_sense_save = on;
+    else if (!strcmp(name, "panel")) puglik_panel_sleep = on;
+    else if (!strcmp(name, "bt")) puglik_bt_save = on; /* takes effect on the next link and advertising round */
+    ESP_LOGI(TAG, "puglik %s %s", name, on ? "on" : "off");
 }
 
 static void profile_save(void)
@@ -185,13 +185,13 @@ static void settings_load(void)
         if (nvs_get_u8(h, "bright", &b) == ESP_OK) bright = b < 10 ? 10 : b > 100 ? 100 : b;
         if (nvs_get_u8(h, "eco", &eco) == ESP_OK) pip_eco(eco);
         uint8_t pl, chg;
-        if (nvs_get_u8(h, "chg", &chg) == ESP_OK) plip_charge_code = chg;
+        if (nvs_get_u8(h, "chg", &chg) == ESP_OK) puglik_charge_code = chg;
         uint8_t md, ae;
-        if (nvs_get_u8(h, "autoeco", &ae) == ESP_OK) plip_autoeco = ae;
+        if (nvs_get_u8(h, "autoeco", &ae) == ESP_OK) puglik_autoeco = ae;
         uint8_t ro;
-        if (nvs_get_u8(h, "radio", &ro) == ESP_OK) plip_radio_off = !ro;
-        if (nvs_get_u8(h, "mode", &md) == ESP_OK) plip_mode = md; /* its switches come from "plip" below */
-        if (nvs_get_u8(h, "plip", &pl) == ESP_OK) pip_still_skip(pl & 1), plip_lit_sleep = pl >> 1 & 1, plip_bt_save = pl >> 2 & 1, plip_sense_save = pl >> 3 & 1, plip_panel_sleep = pl >> 4 & 1;
+        if (nvs_get_u8(h, "radio", &ro) == ESP_OK) puglik_radio_off = !ro;
+        if (nvs_get_u8(h, "mode", &md) == ESP_OK) puglik_mode = md; /* its switches come from "puglik" below */
+        if (nvs_get_u8(h, "puglik", &pl) == ESP_OK) pip_still_skip(pl & 1), puglik_lit_sleep = pl >> 1 & 1, puglik_bt_save = pl >> 2 & 1, puglik_sense_save = pl >> 3 & 1, puglik_panel_sleep = pl >> 4 & 1;
         if (nvs_get_blob(h, "profile", &profile, &n) != ESP_OK || n != sizeof profile) n = 0; /* a size of its own: the defaults stay */
         nvs_close(h);
     }
@@ -290,8 +290,8 @@ static bool qmi_read(float a[3], float g[3]) /* accel in g, gyro in deg/s, both 
 #define AXP_IRQ_EN2 0x41      /* bit 3: PWR key short press */
 #define AXP_IRQ_STATUS2 0x49  /* same bit, write 1 to clear */
 #define AXP_BAT_PERCENT 0xA4
-#define AXP_CHG_CURRENT 0x62 /* plip: bits 4..0, the constant charge current */
-int plip_charge_code = 9;     /* plip: 300 mA (see pmu_init); 0 leaves what the chip has */
+#define AXP_CHG_CURRENT 0x62 /* puglik: bits 4..0, the constant charge current */
+int puglik_charge_code = 9;     /* puglik: 300 mA (see pmu_init); 0 leaves what the chip has */
 #define AXP_VBAT_H 0x34       /* battery voltage, mV: 6 bits here, 8 in the next register */
 static i2c_master_dev_handle_t pmu;
 
@@ -317,17 +317,17 @@ static bool pmu_init(i2c_master_bus_handle_t bus)
     pmu_set(AXP_ADC_CTRL, (uint8_t)(adc | 0x01));
     pmu_set(AXP_IRQ_EN2, (uint8_t)(irq | 0x08));
     pmu_set(AXP_IRQ_STATUS2, 0xFF); /* forget presses from before we started */
-    /* plip: the constant charge current (REG 62H, XPowersLib's codes: 4 = 100 mA, 8 = 200 mA, then 9 = 300 mA,
+    /* puglik: the constant charge current (REG 62H, XPowersLib's codes: 4 = 100 mA, 8 = 200 mA, then 9 = 300 mA,
        10 = 400 mA ...). The cell is 500 mAh: 300 mA is 0.6 C, a full charge in about 2 h instead of 5 at 100 mA. */
-    plip_charge_apply();
+    puglik_charge_apply();
     return true;
 }
 
-void plip_charge_apply(void)
+void puglik_charge_apply(void)
 {
     int was = pmu_get(AXP_CHG_CURRENT);
     if (was < 0) return;
-    if (plip_charge_code > 0 && plip_charge_code <= 16) pmu_set(AXP_CHG_CURRENT, (uint8_t)((was & ~0x1F) | plip_charge_code));
+    if (puglik_charge_code > 0 && puglik_charge_code <= 16) pmu_set(AXP_CHG_CURRENT, (uint8_t)((was & ~0x1F) | puglik_charge_code));
     ESP_LOGI(TAG, "charge current code %d -> %d", was & 0x1F, pmu_get(AXP_CHG_CURRENT) & 0x1F);
 }
 
@@ -342,8 +342,8 @@ static void pmu_battery(void)
     bat.pct = present && pct >= 0 && pct <= 100 ? pct : -1, bat.charging = charging, bat.usb = s1 & 0x20;
     bat.mv = present && vh >= 0 && vl >= 0 ? (vh & 0x3F) << 8 | vl : 0;
     shell_battery(bat.pct, charging);
-    gb_battery(bat.pct, charging); /* plip: Gadgetbridge shows Pip's battery */
-    plip_battery_watch(bat.pct, charging);
+    gb_battery(bat.pct, charging); /* puglik: Gadgetbridge shows Pip's battery */
+    puglik_battery_watch(bat.pct, charging);
 }
 
 /* ---------- the battery log: a row a minute in flash, to measure what a charge lasts ----------
@@ -413,16 +413,16 @@ static bool pmu_pwr_pressed(void)
    it drops to 80 MHz and light-sleeps between wakeups, unless something else holds it (Bluetooth between its radio
    events, an open I2S, the USB host on the debug port). */
 static esp_pm_lock_handle_t lit_cpu, lit_awake;
-/* plip: lit, the chip no longer runs flat out the whole time. The AMOLED keeps its picture by itself, so between
+/* puglik: lit, the chip no longer runs flat out the whole time. The AMOLED keeps its picture by itself, so between
    frames the chip may drop to 80 MHz and light-sleep; "busy" holds 240 MHz (and so keeps it awake) only while there
-   is work: LVGL rendering and streaming a frame, the face drawing in the background. plip_lit_sleep = false brings the
-   original behaviour back (debug command "plip lsleep 0", kept in NVS). */
+   is work: LVGL rendering and streaming a frame, the face drawing in the background. puglik_lit_sleep = false brings the
+   original behaviour back (debug command "puglik lsleep 0", kept in NVS). */
 static esp_pm_lock_handle_t busy_cpu;
 static bool lit_locked; /* lit_cpu/lit_awake held */
-bool plip_lit_sleep = true;
-bool plip_panel_sleep = true; /* "panel": the panel's controller sleeps (SLPIN) while dark, not just display off */
+bool puglik_lit_sleep = true;
+bool puglik_panel_sleep = true; /* "panel": the panel's controller sleeps (SLPIN) while dark, not just display off */
 static bool panel_slept;
-bool plip_sense_save = true; /* "sense": gyro only when an app reads it, sensors 25/s while dark, mic only with the face lit */
+bool puglik_sense_save = true; /* "sense": gyro only when an app reads it, sensors 25/s while dark, mic only with the face lit */
 #define BUSY_BEGIN() esp_pm_lock_acquire(busy_cpu)
 #define BUSY_END() esp_pm_lock_release(busy_cpu)
 
@@ -447,7 +447,7 @@ static void pm_keep_pins(void)
 
 static void pm_lit(bool lit)
 {
-    bool hold = lit && !plip_lit_sleep; /* the original: lit = flat out */
+    bool hold = lit && !puglik_lit_sleep; /* the original: lit = flat out */
     if (hold && !lit_locked) esp_pm_lock_acquire(lit_cpu), esp_pm_lock_acquire(lit_awake), lit_locked = true;
     if (!hold && lit_locked) esp_pm_lock_release(lit_awake), esp_pm_lock_release(lit_cpu), lit_locked = false;
     ESP_LOGI(TAG, "chip %s", hold ? "awake" : lit ? "lit, sleeping between frames" : "sleeping between wakeups");
@@ -469,7 +469,7 @@ static void sensors_task(void *arg)
     bool gyro_on = true; /* qmi_init turns on both */
     float mic_peak = 0;
     for (;;) {
-        vTaskDelay(pdMS_TO_TICKS(plip_sense_save && !panel_want ? 40 : 20)); /* plip: 25 a second while dark, 50 lit */
+        vTaskDelay(pdMS_TO_TICKS(puglik_sense_save && !panel_want ? 40 : 20)); /* puglik: 25 a second while dark, 50 lit */
         int64_t now = esp_timer_get_time();
         float dt = (now - last) / 1e6f, a[3], g[3];
         last = now;
@@ -485,7 +485,7 @@ static void sensors_task(void *arg)
             if (pet->last < 1735689600) pip_pet_rebase(time(NULL)); /* he lived on a made-up clock: no jump in age */
         }
         if (have_a) shell_imu(a[0], a[1], a[2], dt), shell_gyro(g[0], g[1], g[2], dt);
-        bool gyro_want = !plip_sense_save || shell_wants_gyro(); /* plip: the gyroscope only for the remote */
+        bool gyro_want = !puglik_sense_save || shell_wants_gyro(); /* puglik: the gyroscope only for the remote */
         if (imu && gyro_want != gyro_on) gyro_on = gyro_want, qmi_write(QMI_CTRL7, gyro_on ? 0x03 : 0x01);
         if (mic_db() > mic_peak) mic_peak = mic_db();
         shell_time(pet_clock(), tz_min);
@@ -499,7 +499,7 @@ static void sensors_task(void *arg)
         theme_keep();
         pip_info_t in;
         pip_get_info(&in);
-        static int64_t last_act; /* plip: steps to Gadgetbridge every 10 minutes, as a Bangle.js does */
+        static int64_t last_act; /* puglik: steps to Gadgetbridge every 10 minutes, as a Bangle.js does */
         static int last_steps = -1;
         if (now - last_act > 600000000LL) {
             last_act = now;
@@ -507,11 +507,11 @@ static void sensors_task(void *arg)
             last_steps = in.steps;
         }
         panel_want = pip_display_level();
-        bool quiet = (pip_eco_on() && !panel_want) || plip_radio_off; /* saving energy: Bluetooth sleeps with the screen; plip: or is off */
+        bool quiet = (pip_eco_on() && !panel_want) || puglik_radio_off; /* saving energy: Bluetooth sleeps with the screen; puglik: or is off */
         ui_unlock();
         boot_prev = boot;
         if (quiet != ble_off) ble_off = quiet, ble_quiet(quiet);
-        static bool pm_set; /* plip: the first pass always sets the locks (boot holds them flat out) */
+        static bool pm_set; /* puglik: the first pass always sets the locks (boot holds them flat out) */
         if (!pm_set || pm_reapply || lit_held != (panel_want > 0))
             pm_set = true, pm_reapply = false, lit_held = panel_want > 0, pm_lit(lit_held);
         lit += panel_want > 0, ticks++;
@@ -567,8 +567,8 @@ static void mic_task(void *arg)
     for (int k = 0;; k++) {
         if (!open || k % 25 == 0) { /* twice a second: does anyone listen? (Pip's breath and bangs, the noise meter) */
             ui_lock();
-            /* plip: Pip listens only while his face is on a lit screen (an open I2S keeps the chip from sleeping) */
-            bool face = !plip_sense_save || (panel_want > 0 && !strcmp(shell_where(), "pip"));
+            /* puglik: Pip listens only while his face is on a lit screen (an open I2S keeps the chip from sleeping) */
+            bool face = !puglik_sense_save || (panel_want > 0 && !strcmp(shell_where(), "pip"));
             bool want = (pip_mic_wanted() && face) || !strcmp(shell_where(), "noise");
             ui_unlock();
             if (want != open) {
@@ -577,7 +577,7 @@ static void mic_task(void *arg)
                 ESP_LOGI(TAG, "microphone %s", open ? "on" : "off");
             }
         }
-        if (!open) { vTaskDelay(pdMS_TO_TICKS(plip_sense_save ? 500 : 20)); continue; } /* plip: not 50 wakeups a second */
+        if (!open) { vTaskDelay(pdMS_TO_TICKS(puglik_sense_save ? 500 : 20)); continue; } /* puglik: not 50 wakeups a second */
         if (esp_codec_dev_read(mic, buf, sizeof buf) == ESP_CODEC_DEV_OK) mic_feed(buf, AUDIO_RATE / 50, AUDIO_RATE);
         else vTaskDelay(pdMS_TO_TICKS(20));
     }
@@ -705,8 +705,8 @@ static void panel_task(void *arg)
             panel_lit = panel_want;
             if (!panel_lit) {
                 brightness(0), esp_lcd_panel_disp_on_off(lcd_panel, false);
-                /* plip: and the controller to sleep (SLPIN): its booster and oscillator stop, the picture stays in GRAM */
-                if (plip_panel_sleep) esp_lcd_panel_io_tx_param(lcd_io, 0x02 << 24 | 0x10 << 8, NULL, 0), panel_slept = true;
+                /* puglik: and the controller to sleep (SLPIN): its booster and oscillator stop, the picture stays in GRAM */
+                if (puglik_panel_sleep) esp_lcd_panel_io_tx_param(lcd_io, 0x02 << 24 | 0x10 << 8, NULL, 0), panel_slept = true;
             } else {
                 if (panel_slept) { /* SLPOUT, then the 120 ms the controller asks for before anything else */
                     esp_lcd_panel_io_tx_param(lcd_io, 0x02 << 24 | 0x11 << 8, NULL, 0);
@@ -770,13 +770,13 @@ static uint32_t tick_ms(void) { return (uint32_t)(esp_timer_get_time() / 1000); 
 static void lvgl_task(void *arg)
 {
     for (;;) {
-        BUSY_BEGIN(); /* plip: full speed while LVGL renders and streams; the chip may sleep in the delay below */
+        BUSY_BEGIN(); /* puglik: full speed while LVGL renders and streams; the chip may sleep in the delay below */
         ui_lock();
         uint32_t wait = lv_timer_handler();
         ui_unlock();
         BUSY_END();
-        /* Pip's tick asks every 4 ms while a frame is drawn in the background, 16 ms otherwise (plip); dark, nothing is drawn, so 20 times a second lets the chip sleep between */
-        uint32_t cap = panel_lit ? 16 : 50; /* plip: 16 (a frame), not 10: room for the chip to sleep */
+        /* Pip's tick asks every 4 ms while a frame is drawn in the background, 16 ms otherwise (puglik); dark, nothing is drawn, so 20 times a second lets the chip sleep between */
+        uint32_t cap = panel_lit ? 16 : 50; /* puglik: 16 (a frame), not 10: room for the chip to sleep */
         if (!panel_lit) wait = cap;
         vTaskDelay(pdMS_TO_TICKS(wait < 1 ? 1 : wait > cap ? cap : wait));
     }
@@ -887,7 +887,7 @@ static void face_master_task(void *arg)
 {
     for (;;) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-        BUSY_BEGIN(); /* plip: both cores at full speed while the face draws */
+        BUSY_BEGIN(); /* puglik: both cores at full speed while the face draws */
         face_draw(face_job.f, face_job.buf, face_job.w, face_job.h);
         BUSY_END();
         face_busy = 0;

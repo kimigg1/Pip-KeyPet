@@ -78,7 +78,7 @@ static void bat_show(void)
     lv_obj_set_width(sh.bat_fill, 2 + 26 * bat.pct / 100);
     lv_obj_set_style_bg_color(sh.bat_fill, lv_color_hex(c), 0);
 }
-/* plip: how long the charge lasts at this pace. On battery, every percent that goes is timed: the pace is a running
+/* puglik: how long the charge lasts at this pace. On battery, every percent that goes is timed: the pace is a running
    average of %/hour (the newest drops weigh most), the forecast what is left divided by it. Charging starts over. */
 static struct { uint32_t since; int from; float per_h; } fc = {.from = -1};
 static void forecast(int pct, bool charging)
@@ -715,7 +715,7 @@ void shell_button(int id)
 {
     bool dark = !pip_display_on();
     pip_seen();
-    if (extras_stop()) return; /* plip: a press stops "find my device" or a ringing alarm first */
+    if (extras_stop()) return; /* puglik: a press stops "find my device" or a ringing alarm first */
     if (dark) return; /* the press that wakes the screen does nothing else */
     if (phone_button(id)) return; /* a call, the pairing or a banner answers first */
     lv_obj_t *now = lv_screen_active();
@@ -750,7 +750,7 @@ void shell_button_up(int id)
     if (sh.open >= 0 && apps[sh.open].button_up) apps[sh.open].button_up(id);
 }
 
-bool shell_wants_gyro(void) { return sh.open >= 0 && apps[sh.open].gyro; } /* plip: the gyroscope is off otherwise */
+bool shell_wants_gyro(void) { return sh.open >= 0 && apps[sh.open].gyro; } /* puglik: the gyroscope is off otherwise */
 
 void shell_gyro(float gx, float gy, float gz, float dt)
 {
@@ -764,7 +764,7 @@ void shell_imu(float ax, float ay, float az, float dt)
     if (!pip_display_on() && lv_screen_active() != sh.pip_scr && !awake && !phone_where()) shell_home(); /* asleep: back to his face */
     pip_shake_ok(sh.open < 0 || !apps[sh.open].imu); /* shaking a die is not shaking him */
     pip_imu(ax, ay, az, dt);
-    if (pip_take_dtap() && sh.open < 0 && !phone_where() && !extras_stop()) { /* plip: a double tap shows the time */
+    if (pip_take_dtap() && sh.open < 0 && !phone_where() && !extras_stop()) { /* puglik: a double tap shows the time */
         pip_wake();
         for (int i = 0; i < app_count; i++)
             if (!strcmp(apps[i].id, "clock")) { open_app(i); break; }
@@ -858,5 +858,5 @@ void shell_create(void)
     sh.glide = lv_timer_create(hex_glide, 16, NULL);
     restyle_menu();
     apps_init();
-    extras_init(); /* plip: find my device, the phone's alarms, the weather */
+    extras_init(); /* puglik: find my device, the phone's alarms, the weather */
 }

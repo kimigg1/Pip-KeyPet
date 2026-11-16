@@ -9,7 +9,7 @@ void shell_create(void);
 void shell_time(int64_t unix_s, int tz_min);            /* wall clock for Pip and the apps */
 void shell_imu(float ax, float ay, float az, float dt); /* accelerometer in g, device axes */
 void shell_gyro(float gx, float gy, float gz, float dt); /* gyroscope in deg/s, the same axes: for the apps that want it */
-bool shell_wants_gyro(void); /* plip: an app that reads the gyroscope is open (else the board turns it off) */
+bool shell_wants_gyro(void); /* puglik: an app that reads the gyroscope is open (else the board turns it off) */
 void shell_button(int id);                              /* top PIP_BTN_PWR = menu / open, bottom PIP_BTN_BOOT = back / meet */
 void shell_button_up(int id);                           /* a key let go (only the bottom one tells: the top is the PMU's) */
 const char *shell_where(void);                          /* "pip", "menu" or the open app's id */
@@ -45,6 +45,6 @@ int64_t shell_local_time(void);        /* seconds, already shifted to the local 
 void shell_battery(int percent, bool charging); /* from the power chip; -1 = unknown */
 int shell_battery_level(bool *charging);        /* -1 = unknown */
 const char *shell_battery_text(void);           /* "82%", "82%+" while charging, "--" */
-int shell_battery_minutes(void);   /* plip: the charge left at this pace, minutes; -1 not known yet / charging */
-const char *shell_battery_left(void); /* plip: "~5 ч", "~40 мин", "считаю…", "заряжается" */
+int shell_battery_minutes(void);   /* puglik: the charge left at this pace, minutes; -1 not known yet / charging */
+const char *shell_battery_left(void); /* puglik: "~5 ч", "~40 мин", "считаю…", "заряжается" */
 lv_draw_buf_t *shell_icon(int icon);   /* the carousel's icon sprite, to reuse inside an app */

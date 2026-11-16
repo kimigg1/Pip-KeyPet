@@ -1,4 +1,4 @@
-/* plip: the Gadgetbridge (Bangle.js) literal reader on what Gadgetbridge really sends */
+/* puglik: the Gadgetbridge (Bangle.js) literal reader on what Gadgetbridge really sends */
 #include "gbjs.h"
 #include <math.h>
 #include <stdio.h>

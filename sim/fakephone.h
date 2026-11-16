@@ -9,7 +9,7 @@ const char *fake_phone_last(void); /* the last command the keychain sent, "" if 
 int fake_phone_shots(void);        /* photos taken with the shutter */
 void fake_host(int arg);              /* the fake computer: 0 gone, 1 asks to pair, 2 paired and back */
 const char *fake_host_report(void); /* "host=on clicks=.. prevs=.. mx=.. my=..": what the remote sent it */
-/* plip: a pretend Android with Gadgetbridge (event q<n>). what: 0 gone; 1 a notification (Russian), 2 it is gone, 3 a call rings,
+/* puglik: a pretend Android with Gadgetbridge (event q<n>). what: 0 gone; 1 a notification (Russian), 2 it is gone, 3 a call rings,
    4 it ends, 5 music plays, 6 weather, 7 an alarm, 8 "find my device", 9 setTime + zone, 10 an alarm at 12:01 (connects first if needed) */
 void fake_gb(int what);
 const char *fake_gb_report(void); /* "gb=1 gbsent=<last line Pip sent> gbn=.. gbclock=.. gbtz=.." */
